@@ -1,69 +1,122 @@
-| Supported Targets | ESP32 | ESP32-C2 | ESP32-C3 | ESP32-C5 | ESP32-C6 | ESP32-C61 | ESP32-H2 | ESP32-H21 | ESP32-H4 | ESP32-P4 | ESP32-S2 | ESP32-S3 | ESP32-S31 |
-| ----------------- | ----- | -------- | -------- | -------- | -------- | --------- | -------- | --------- | -------- | -------- | -------- | -------- | --------- |
+| Supported Targets | ESP32-P4 | ESP32 |
+| ----------------- | -------- | ----- |
 
-# Blink Example
+# TMF8829 SPI Driver & Playground (ESP32-P4)
 
-(See the README.md file in the upper level 'examples' directory for more information about examples.)
+This project provides an ESP-IDF firmware application for the **ams OSRAM TMF8829** multi-zone direct Time-of-Flight (dToF) optical distance sensor running on an **ESP32-P4** (e.g., M5Stack Unit PoE-P4).
 
-This example demonstrates how to blink a LED by using the GPIO driver or using the [led_strip](https://components.espressif.com/component/espressif/led_strip) library if the LED is addressable e.g. [WS2812](https://cdn-shop.adafruit.com/datasheets/WS2812B.pdf). The `led_strip` library is installed via [component manager](main/idf_component.yml).
+It is ported from the official ams OSRAM Arduino reference driver (`TMF8829_Driver_Arduino_v1.2.5`), preserving the original driver architecture in `main/` while integrating an ESP-IDF hardware shim for high-speed SPI communication (with DMA), GPIO control, USB Serial/JTAG console interaction, and FreeRTOS task yielding for watchdog safety.
 
-## How to Use Example
+---
 
-Before project configuration and build, be sure to set the correct chip target using `idf.py set-target <chip_name>`.
+## Hardware Wiring
 
-### Hardware Required
+The default firmware configuration matches the soldered module pinout:
 
-* A development board with normal LED or addressable LED on-board (e.g., ESP32-S3-DevKitC, ESP32-C6-DevKitC etc.)
-* A USB cable for Power supply and programming
+| Signal | ESP32-P4 GPIO | Description |
+| :--- | :--- | :--- |
+| **MOSI** | `GPIO13` | SPI Master Out / Slave In |
+| **SCLK** | `GPIO12` | SPI Clock |
+| **MISO** | `GPIO11` | SPI Master In / Slave Out |
+| **CS** | `GPIO10` | SPI Chip Select |
+| **DE** | `GPIO9` | Device Enable (active high) |
+| **GND** | `GND` | Ground |
+| **3V3** | `3.3V` | Power Supply |
 
-See [Development Boards](https://www.espressif.com/en/products/devkits) for more information about it.
+---
 
-### Configure the Project
+## Configuration & Defaults
 
-Open the project configuration menu (`idf.py menuconfig`).
+Project defaults in `sdkconfig.defaults.esp32p4` include:
+- **Flash Size**: 16 MB (`CONFIG_ESPTOOLPY_FLASHSIZE_16MB=y`)
+- **Console Interface**: Native USB Serial/JTAG controller as primary console (`CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG=y`)
+- **Main Task Stack Size**: 8 KB (`CONFIG_ESP_MAIN_TASK_STACK_SIZE=8192`)
+- **SPI DMA**: Auto DMA channel enabled with max transfer size up to 4 KB to support 500-byte FIFO firmware chunks and raw result frames
 
-In the `Example Configuration` menu:
+Project options can be further adjusted using `menuconfig`:
 
-* Select the LED type in the `Blink LED type` option.
-  * Use `GPIO` for regular LED
-  * Use `LED strip` for addressable LED
-* If the LED type is `LED strip`, select the backend peripheral
-  * `RMT` is only available for ESP targets with RMT peripheral supported
-  * `SPI` is available for all ESP targets
-* Set the GPIO number used for the signal in the `Blink GPIO number` option.
-* Set the blinking period in the `Blink period in ms` option.
+1. Set target (if not already set):
+   ```bash
+   idf.py set-target esp32p4
+   ```
 
-### Build and Flash
+2. Open the configuration menu:
+   ```bash
+   idf.py menuconfig
+   ```
 
-Run `idf.py -p PORT flash monitor` to build, flash and monitor the project.
+3. In `TMF8829 UDP Forwarder Configuration` (or project configuration), adjust:
+   - **SPI Host**: default `2` (`SPI2_HOST`)
+   - **SPI Clock**: default `20000000` Hz (20 MHz)
+   - **Pin Mapping**: `MOSI` (13), `MISO` (11), `SCLK` (12), `CS` (10), `DE` (9)
 
-(To exit the serial monitor, type ``Ctrl-]``.)
+---
 
-See the [Getting Started Guide](https://docs.espressif.com/projects/esp-idf/en/latest/get-started/index.html) for full steps to configure and use ESP-IDF to build projects.
+## Build, Flash, and Monitor
 
-## Example Output
+Make sure your ESP-IDF environment is active (e.g., `source ~/.espressif/tools/activate_idf_v5.4.3.sh`), then build, flash, and open the serial monitor:
 
-As you run the example, you will see the LED blinking, according to the previously defined period. For the addressable LED, you can also change the LED color by setting the `led_strip_set_pixel(led_strip, 0, 16, 16, 16);` (LED Strip, Pixel Number, Red, Green, Blue) with values from 0 to 255 in the [source file](main/blink_example_main.c).
-
-```text
-I (315) example: Example configured to blink addressable LED!
-I (325) example: Turning the LED OFF!
-I (1325) example: Turning the LED ON!
-I (2325) example: Turning the LED OFF!
-I (3325) example: Turning the LED ON!
-I (4325) example: Turning the LED OFF!
-I (5325) example: Turning the LED ON!
-I (6325) example: Turning the LED OFF!
-I (7325) example: Turning the LED ON!
-I (8325) example: Turning the LED OFF!
+```bash
+idf.py -p <PORT> flash monitor
 ```
 
-Note: The color order could be different according to the LED model.
+*(Replace `<PORT>` with your serial device port, e.g., `/dev/ttyACM0` or `/dev/cu.usbmodem...`)*
 
-The pixel number indicates the pixel position in the LED strip. For a single LED, use 0.
+To exit the monitor, use the shortcut `Ctrl + ]`.
 
-## Troubleshooting
+---
 
-* If the LED isn't blinking, check the GPIO or the LED type selection in the `Example Configuration` menu.
+## Interactive Serial Console
 
-For any technical queries, please open an [issue](https://github.com/espressif/esp-idf/issues) on GitHub. We will get back to you soon.
+The application provides an interactive command-line interface via the monitor console. Simply press any of the following keys:
+
+| Key | Action | Description |
+| :---: | :--- | :--- |
+| `h` | **Help** | Prints the list of available commands |
+| `e` | **Enable & Download FW** | Enables the sensor via `DE`, powers up, and downloads RAM firmware |
+| `m` | **Measure** | Starts continuous distance measurements |
+| `s` | **Stop** | Stops continuous measurement |
+| `c` / `p` | **Next Configuration** | Cycles through optical configurations (8x8, 16x16, 32x32, 48x32, high accuracy, etc.) |
+| `u` | **Get Configuration** | Reads and displays current configuration registers |
+| `1` / `o` / `O` | **Single-Shot 48x32 Dump & PGM** | Captures a 48x32 frame (dual sub-frames), prints raw hex dumps, and outputs ASCII PGM (P2) image |
+| `a` | **Dump Registers** | Dumps 256 sensor registers over SPI (when stopped) |
+| `w` | **Wakeup** | Wakes up sensor from power-down state |
+| `P` | **Power Down** | Puts sensor into power-down (standby) state |
+| `d` | **Disable** | Drives `DE` low to disable the sensor |
+| `z` | **Histogram** | Toggles histogram readout / dumping |
+| `x` | **Clock Correction** | Toggles distance clock correction on/off |
+| `+` | **Log Level +** | Increases logging verbosity |
+| `-` | **Log Level -** | Decreases logging verbosity |
+| `#` | **Reset** | Tests software reset on the sensor |
+| `b` | **Binary Mode** | Enters binary command input mode |
+
+### Typical Usage Walkthroughs
+
+#### 1. Continuous Distance Measurement
+1. Open `idf.py monitor`.
+2. Press `e` to enable the sensor and download the RAM firmware image. The console will report `CPU ready` and confirm `state=stopped`.
+3. (Optional) Press `c` or `p` to select your preferred optical profile (e.g., 8x8 Default, 8x8 Long Range, 16x16, 32x32, 48x32).
+4. Press `m` to start measuring. Measurement frames stream to the console.
+5. Press `s` to stop measurement at any time.
+
+#### 2. Single-Shot 48x32 Capture & PGM Image Export
+1. Press `e` to ensure the device is initialized.
+2. Press `1` (or `o` / `O`).
+3. The firmware configures 48x32 mode, captures both Sub-frame 0 (even rows) and Sub-frame 1 (odd rows), outputs raw SPI frame hexdumps, and prints the complete 1536-pixel depth map in Netpbm ASCII PGM (`P2`) format (48 pixels per row across 32 rows).
+4. The PGM text can be copied or redirected into a `.pgm` file and viewed in standard image viewers (GIMP, ImageMagick, VS Code PGM viewer).
+
+---
+
+## Project Structure
+
+- `main/main.c`: Application entry point (`app_main`), initializes and runs the `initial_setup()` / `main_loop()` lifecycle.
+- `main/tmf8829_shim.cpp` & `tmf8829_shim.h`: ESP-IDF hardware shim layer:
+  - SPI bus and device initialization/transactions with DMA support.
+  - GPIO output configuration for Device Enable (`DE`).
+  - USB Serial/JTAG console non-blocking character polling.
+  - FreeRTOS cooperative task delays and yield points to satisfy the Task Watchdog Timer (TWDT).
+- `main/tmf8829_app.cpp` & `tmf8829_app.h`: High-level application logic, state machine, single-shot 48x32 PGM exporter, and interactive command parser.
+- `main/tmf8829_help.cpp` & `tmf8829_help.h`: Helper functions for human-readable mode names, pre-configuration labels, and optical profile descriptions.
+- `main/tmf8829.c` & `tmf8829.h`: Core ams OSRAM driver implementing SPI protocol framing (`0x02` write, `0x03` read), bootloader control, firmware download, and result parsing.
+- `main/tmf8829_firmware.c` & `tmf8829_firmware.h`: Pre-compiled firmware hex image loaded into TMF8829 RAM during initialization.
+- `documentation/`: Sensor datasheet (`DS001140`), communication protocol application note (`AN001096`), and the original Arduino reference implementation.
