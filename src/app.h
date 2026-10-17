@@ -16,6 +16,8 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include "tmf8829/tmf8829.h"
+
 // ---------------------------------------------- defines -----------------------------------------
 /* tmf application states */
 #define TMF8829_STATE_DISABLED      0 /**< application status, device is disabled */
@@ -26,6 +28,12 @@
 
 #define NR_LOG_LEVELS               9 /**< number of log-levels in application */
 
+// ---------------------------------------------- variables ---------------------------------------
+
+inline tmf8829Driver tmf8829; /**< instances of tmf8829 driver */
+inline int8_t stateTmf8829; /**< current state of the device */
+inline int8_t tmf8829ConfigNr;
+
 // ---------------------------------------------- functions ---------------------------------------
 #ifdef __cplusplus
 extern "C" {
@@ -35,11 +43,7 @@ void initial_setup( uint8_t logLevelIdx, uint32_t baudrate, uint32_t spiClockSpe
 int8_t main_loop( void );
 void final_clean_shutdown( void );
 
-int8_t singleShot48x32HexDump( void );
-int8_t singleShot8x8HexDump( void );
-void printHexDump( const uint8_t * data, size_t len );
-void printDistanceMapPGM( const uint16_t * distances, uint16_t width, uint16_t height );
-void printFramePGM( const uint8_t * frame, size_t frameLen );
+void preconfigure(int8_t cfgNr);
 
 #ifdef __cplusplus
 }

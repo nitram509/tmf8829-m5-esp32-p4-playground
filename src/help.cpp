@@ -1,9 +1,11 @@
 #include <cstdio>
 #include <cstring>
-#include "tmf8829.h"
-#include "tmf8829_help.h"
+#include "tmf8829/tmf8829.h"
+#include "app.h"
+#include "help.h"
 
 #define DELAY_PRINT_HELP  10000 /**< delay between the prints */
+#define TMF8829_APPLICATION_MINOR_VERSION    5
 
 
 /** @brief Helper to get descriptive name of a pre-configuration command.
@@ -100,54 +102,54 @@ void printHelp ( )
   PRINT_LN( ); 
 }
 
-/** @brief Function to print buffer contents as formatted canonical hex dump.
- *  @param data ... pointer to byte array
- *  @param len ... length of byte array
+/** @brief Function will print the Arduino version,
+ * firmware version, chip version and serial number.
  */
-void printHexDump ( const uint8_t * data, size_t len )
-{
-  if ( data == nullptr || len == 0 )
-  {
-    return;
-  }
-  for ( size_t i = 0; i < len; i += 16 )
-  {
-    char lineBuf[128];
-    int pos = snprintf( lineBuf, sizeof(lineBuf), "%08X: ", (unsigned int)i );
+void printDeviceInfo() {
+  PRINT_CONST_STR(F( "TMF8829 Arduino Driver Version " ));
+  PRINT_INT(tmf8829.info.version[0]);
+  PRINT_CHAR('.');
+  PRINT_INT(tmf8829.info.version[1]);
+  PRINT_CHAR('.');
+  PRINT_INT(TMF8829_APPLICATION_MINOR_VERSION);
+  PRINT_LN();
+  PRINT_CONST_STR(F( "Firmware Application Version " ));
+  PRINT_INT(tmf8829.device.appVersion[0]);
+  PRINT_CHAR('.');
+  PRINT_INT(tmf8829.device.appVersion[1]);
+  PRINT_CHAR('.');
+  PRINT_INT(tmf8829.device.appVersion[2]);
+  PRINT_CHAR('.');
+  PRINT_INT(tmf8829.device.appVersion[3]);
+  PRINT_CHAR('.');
+  PRINT_LN();
+  PRINT_CONST_STR(F( "Chip Version " ));
+  PRINT_INT(tmf8829.device.chipVersion[0]);
+  PRINT_CHAR('.');
+  PRINT_INT(tmf8829.device.chipVersion[1]);
+  PRINT_LN();
+  PRINT_CONST_STR(F( "Serial Number 0x" ));
+  PRINT_UINT_HEX(tmf8829.device.deviceSerialNumber);
+  PRINT_LN();
+}
 
-    // Hex bytes
-    for ( size_t j = 0; j < 16; j++ )
-    {
-      if ( j == 8 && pos < (int)sizeof(lineBuf) )
-      {
-        lineBuf[pos++] = ' ';
-      }
-      if ( ( i + j ) < len )
-      {
-        pos += snprintf( lineBuf + pos, sizeof(lineBuf) - pos, "%02X ", data[i + j] );
-      }
-      else
-      {
-        pos += snprintf( lineBuf + pos, sizeof(lineBuf) - pos, "   " );
-      }
-    }
-
-    // ASCII characters
-    if ( pos < (int)sizeof(lineBuf) )
-    {
-      pos += snprintf( lineBuf + pos, sizeof(lineBuf) - pos, " |" );
-    }
-    for ( size_t j = 0; j < 16 && ( i + j ) < len && pos < (int)sizeof(lineBuf); j++ )
-    {
-      uint8_t c = data[i + j];
-      lineBuf[pos++] = ( c >= 32 && c <= 126 ) ? (char)c : '.';
-    }
-    if ( pos < (int)sizeof(lineBuf) )
-    {
-      lineBuf[pos++] = '|';
-    }
-    lineBuf[pos] = '\0';
-    PRINT_STR( lineBuf );
-    PRINT_LN( );
+/** @brief Function prints the current state (stateTmf8829) in a readable format
+ */
+void printState() {
+  PRINT_CONST_STR(F( " state=" ));
+  switch (stateTmf8829) {
+    case TMF8829_STATE_DISABLED: PRINT_CONST_STR(F( "disabled" ));
+      break;
+    case TMF8829_STATE_STANDBY: PRINT_CONST_STR(F( "standby" ));
+      break;
+    case TMF8829_STATE_STOPPED: PRINT_CONST_STR(F( "stopped" ));
+      break;
+    case TMF8829_STATE_MEASURE: PRINT_CONST_STR(F( "measure" ));
+      break;
+    case TMF8829_STATE_ERROR: PRINT_CONST_STR(F( "error" ));
+      break;
+    default: PRINT_CONST_STR(F( "???" ));
+      break;
   }
+  PRINT_LN();
 }
