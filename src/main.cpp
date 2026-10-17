@@ -2,16 +2,13 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "sdkconfig.h"
-#include "tmf8829/tmf8829.h"
-#include "tmf8829/tmf8829_shim.h"
-#include "tmf8829/tmf8829_help.h"
-#include "tmf8829/tmf8829_app.h"
+#include "tmf8829_app.h"
 
 #define UART_BAUD_RATE 2000000
 
 static const char *TAG = "main";
 
-void app_main(void)
+extern "C" void app_main(void)
 {
     ESP_LOGI(TAG, "Starting TMF8829 application flow");
     initial_setup(1, UART_BAUD_RATE, CONFIG_TMF8829_SPI_CLOCK_HZ);

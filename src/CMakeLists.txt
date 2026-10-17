@@ -1,4 +1,4 @@
-idf_component_register(SRCS "main.c"
+idf_component_register(SRCS "main.cpp"
                             "tmf8829/tmf8829_firmware.c"
                             "tmf8829/tmf8829.c"
                             "tmf8829/tmf8829_shim.cpp"

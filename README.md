@@ -109,7 +109,7 @@ The application provides an interactive command-line interface via the monitor c
 
 ## Project Structure
 
-- `src/main.c`: Application entry point (`app_main`), orchestrating the program flow and main task loop.
+- `src/main.cpp`: Application entry point (`app_main`), orchestrating the program flow and main task loop.
 - `src/tmf8829/`: Dedicated subsystem for TMF8829 sensor communication, control, and data acquisition:
   - `tmf8829_app.cpp` & `tmf8829_app.h`: Sensor application logic, state machine, single-shot 48x32 PGM exporter, and interactive command parser.
   - `tmf8829_shim.cpp` & `tmf8829_shim.h`: ESP-IDF hardware shim layer (SPI bus with DMA, GPIO for `DE`, USB Serial/JTAG polling, FreeRTOS yields).
