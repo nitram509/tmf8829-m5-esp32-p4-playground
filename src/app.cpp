@@ -46,9 +46,9 @@ const uint8_t logLevels[NR_LOG_LEVELS] =
     TMF8829_LOG_LEVEL_DEBUG
 };
 
-/** @brief measCfg holds the supported pre-configurations by the TMF8829 device.
+/** @brief measConfig holds the supported pre-configurations by the TMF8829 device.
  */
-const int measCfg[NR_OF_MEAS_CFGS] =
+const int measConfig[NR_OF_MEAS_CFGS] =
 {
     TMF8829_CMD_STAT__cmd_stat__CMD_LOAD_CFG_8X8,
     TMF8829_CMD_STAT__cmd_stat__CMD_LOAD_CFG_8X8_LONG_RANGE,
@@ -111,15 +111,15 @@ static void printConfigurationDetails() {
 
     PRINT_CONST_STR(F( "=== TMF8829 Current Configuration ===" ));
     PRINT_LN();
-    if (tmf8829ConfigNr >= 0 && tmf8829ConfigNr < NR_OF_MEAS_CFGS) {
+    if (currentMeasConfigNr >= 0 && currentMeasConfigNr < NR_OF_MEAS_CFGS) {
         PRINT_CONST_STR(F( " Profile: [" ));
-        PRINT_INT(tmf8829ConfigNr + 1);
+        PRINT_INT(currentMeasConfigNr + 1);
         PRINT_CONST_STR(F( "/" ));
         PRINT_INT(NR_OF_MEAS_CFGS);
         PRINT_CONST_STR(F( "] " ));
-        PRINT_CONST_STR(getPreconfigName( measCfg[tmf8829ConfigNr] ));
+        PRINT_CONST_STR(getPreconfigName( measConfig[currentMeasConfigNr] ));
         PRINT_CONST_STR(F( " (Cmd 0x" ));
-        PRINT_UINT_HEX(measCfg[tmf8829ConfigNr]);
+        PRINT_UINT_HEX(measConfig[currentMeasConfigNr]);
         PRINT_CONST_STR(F( ")" ));
         PRINT_LN();
     } else {
@@ -381,15 +381,15 @@ void printRegisters(uint8_t regAddr, uint16_t len, char seperator) {
 
 
 /** @brief Function will change the pre-configuration of the Tmf8829 device.
-    Next itemfrom measCfg is used.
+    Next itemfrom measConfig is used.
  */
 void nextConfiguration() {
     if (stateTmf8829 == TMF8829_STATE_STOPPED) {
-        tmf8829ConfigNr = tmf8829ConfigNr + 1;
-        if (tmf8829ConfigNr >= NR_OF_MEAS_CFGS) {
-            tmf8829ConfigNr = 0; // wrap around
+        currentMeasConfigNr = currentMeasConfigNr + 1;
+        if (currentMeasConfigNr >= NR_OF_MEAS_CFGS) {
+            currentMeasConfigNr = 0; // wrap around
         }
-        preconfigure(measCfg[tmf8829ConfigNr]);
+        preconfigure(measConfig[currentMeasConfigNr]);
     } else {
         PRINT_CONST_STR(F( "Cannot change configuration: Device must be in STOPPED state." ));
         PRINT_LN();
@@ -690,7 +690,7 @@ int8_t serialInput() {
  */
 void resetAppState() {
     stateTmf8829 = TMF8829_STATE_DISABLED;
-    tmf8829ConfigNr = NR_OF_MEAS_CFGS; // reset of preconfigure Nr.
+    currentMeasConfigNr = NR_OF_MEAS_CFGS; // reset of preconfigure Nr.
     clkCorrectionOn = 1;
     irqTriggered = 0;
 }

@@ -32,7 +32,7 @@
 
 inline tmf8829Driver tmf8829; /**< instances of tmf8829 driver */
 inline int8_t stateTmf8829; /**< current state of the device */
-inline int8_t tmf8829ConfigNr;
+inline int8_t currentMeasConfigNr;
 
 // ---------------------------------------------- functions ---------------------------------------
 #ifdef __cplusplus

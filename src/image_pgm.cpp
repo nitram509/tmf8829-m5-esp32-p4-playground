@@ -151,7 +151,7 @@ int8_t singleShot48x32HexDump() {
     // 1. Set mode 48x32 Default
     PRINT_CONST_STR(F( "[1/4] Configuring 48x32 Default mode..." ));
     PRINT_LN();
-    tmf8829ConfigNr = 7; // 48x32 Default mode (measCfg[7])
+    currentMeasConfigNr = 7; // 48x32 Default mode (measConfig[7])
     preconfigure(TMF8829_CMD_STAT__cmd_stat__CMD_LOAD_CFG_48X32);
 
     // 2. Enable measurement
