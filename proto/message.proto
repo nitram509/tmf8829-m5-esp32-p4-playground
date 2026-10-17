@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+enum Command {
+  GetDeviceInfo = 0;
+}
+
+message Request {
+  Command command = 1;
+}
+
+message DeviceInfo {
+  string Firmware_Version = 1;
+  string Chip_Version = 2;
+  string Chip_Serial = 3;
+}

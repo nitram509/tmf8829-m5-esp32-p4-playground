@@ -107,6 +107,31 @@ The application provides an interactive command-line interface via the monitor c
 
 ---
 
+## Compiling the Protocol Buffers source
+
+This project used NanoBP https://github.com/nanopb/nanopb for Protocol Buffers (a.k.a. ProtoBuf) with small code size.
+
+### Prerequisite
+
+Install protoc and nanopb extension
+This only needs to be done once.
+
+```shell
+brew install protoc
+brew install nanopb
+```
+
+### Compile the `.proto` file
+
+This uses the regular protoc compiler with nanopb extension to generate the lightweight stubs.
+
+```shell
+cd src/protobuf
+protoc --proto_path=../../proto --nanopb_out="$(pwd)" message.proto 
+```
+
+---
+
 ## Project Structure
 
 - `src/main.cpp`: Application entry point (`app_main`), orchestrating the program flow and main task loop.
@@ -114,6 +139,9 @@ The application provides an interactive command-line interface via the monitor c
 - `src/image_pgm.cpp` & `src/image_pgm.h`: ASCII PGM (P2) image exporter, distance map rendering, and single-shot frame capture routines.
 - `src/help.cpp` & `src/help.h`: Helper functions for human-readable mode names, pre-configuration labels, and optical profile descriptions.
 - `src/net.cpp` & `src/net.h`: Ethernet driver initialization (ESP32-P4 EMAC + IP101 PHY) and raw sensor frame UDP packet forwarder.
+- `src/net_handler.cpp` & `src/net_handler.h`: UDP server listener and Protobuf request handler (`Request` / `GetDeviceInfo` -> `DeviceInfo` response).
+- `src/protobuf/`: Protocol Buffers definitions and auto-generated Nanopb bindings (`message.pb.c`, `message.pb.h`).
+- `src/vendor/nanopb-0.4.9.2/`: Nanopb protocol buffers library (`pb.h`, `pb_common.c`, `pb_encode.c`, `pb_decode.c`).
 - `src/tmf8829/`: Dedicated subsystem for TMF8829 sensor communication, control, and data acquisition:
   - `tmf8829_shim.cpp` & `tmf8829_shim.h`: ESP-IDF hardware shim layer (SPI bus with DMA, GPIO for `DE`, USB Serial/JTAG polling, FreeRTOS yields).
   - `tmf8829.c` & `tmf8829.h`: Core ams OSRAM driver implementing SPI protocol framing, bootloader control, firmware download, and result parsing.

@@ -8,6 +8,7 @@
 #include "help.h"
 #include "image_pgm.h"
 #include "net.h"
+#include "net_handler.h"
 
 #include "tmf8829/tmf8829_shim.h"
 #include "tmf8829/tmf8829.h"
@@ -721,6 +722,7 @@ void initial_setup(uint8_t logLevelIdx, uint32_t baudrate, uint32_t spiClockSpee
     tmf8829Disable(&tmf8829); // this resets the I2C address in the device
     delayInMicroseconds(CAP_DISCHARGE_TIME_MS * 1000); // wait for a proper discharge of the cap
     init_network();
+    start_net_handler();
     printHelp();
 }
 
@@ -767,6 +769,7 @@ int8_t main_loop(void) {
 }
 
 void final_clean_shutdown(void) {
+    stop_net_handler();
     tmf8829Disable(&tmf8829);
     clrInterruptHandler();
 
