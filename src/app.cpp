@@ -29,12 +29,15 @@
 #define TMF8829_BINARY_BUF_SIZE     ( TMF8829_CFG_PAGE_SIZE + 5 ) /**< maximum binary command payload size with 5 spare bytes */
 
 
+
 /* binary command identifiers */
 #define TMF8829_BINARY_CMD_CONFIGURE      0x31  /**< sets arbitrary configuration */
 #define TMF8829_BINARY_CMD_PRE_CONFIGURE  0x32  /**< sets pre-configuration */
 #define TMF8829_BINARY_CMD_CHAR_MODE      0x00  /**< not a valid command identifier, indicates that the application is in character input mode */
 
+
 #define TMF8829_BINARY_CMD_PENDING        0xFF  /**< not a valid command identifier, indicates that the application is in binary input mode awaiting a command identifier */
+
 
 
 // ---------------------------------------------- constants -----------------------------------------
@@ -187,7 +190,7 @@ void getConfiguration() {
     if (stateTmf8829 == TMF8829_STATE_STOPPED) {
         tmf8829GetConfiguration(&tmf8829);
         PRINT_CONST_STR(F( "#Config " ));
-        for (unsigned char i : tmf8829.config) {
+        for (unsigned char i: tmf8829.config) {
             PRINT_UINT_HEX(i);
             PRINT_CHAR(SEPARATOR);
         }
@@ -376,9 +379,6 @@ void printRegisters(uint8_t regAddr, uint16_t len, char seperator) {
 /******************************************************************************/
 /* Application Functions                                                      */
 /******************************************************************************/
-
-
-
 
 
 /** @brief Function will change the pre-configuration of the Tmf8829 device.
@@ -698,7 +698,7 @@ void resetAppState() {
 
 /** @brief Interrupt handler is called when INT pin goes low.
  */
-void interruptHandler(void) {
+void interruptHandler() {
     irqTriggered = 1;
 }
 

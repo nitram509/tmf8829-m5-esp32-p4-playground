@@ -1,19 +1,7 @@
-/**************************************************************************************************
-* Copyright © 2024 ams-OSRAM AG                                                                   *
-* All rights are reserved.                                                                        *
-*                                                                                                 *
-* FOR FULL LICENSE TEXT SEE LICENSES-MIT.TXT                                                      *
-*                                                                                                 *
-**************************************************************************************************/
-
-/** @file This is the tmf8829 arduino uno driver example console application. 
- */
-
-#ifndef TMF8829_APP_H
-#define TMF8829_APP_H
+#ifndef APP_H
+#define APP_H
 
 // ---------------------------------------------- includes ----------------------------------------
-#include <stddef.h>
 #include <stdint.h>
 
 #include "tmf8829/tmf8829.h"
@@ -39,9 +27,11 @@ inline int8_t currentMeasConfigNr;
 extern "C" {
 #endif
 
-void initial_setup( uint8_t logLevelIdx, uint32_t baudrate, uint32_t spiClockSpeedInHz );
-int8_t main_loop( void );
-void final_clean_shutdown( void );
+void initial_setup(uint8_t logLevelIdx, uint32_t baudrate, uint32_t spiClockSpeedInHz);
+
+int8_t main_loop(void);
+
+void final_clean_shutdown(void);
 
 void preconfigure(int8_t cfgNr);
 
@@ -49,4 +39,4 @@ void preconfigure(int8_t cfgNr);
 }
 #endif
 
-#endif // TMF8829_APP_H
+#endif // APP_H

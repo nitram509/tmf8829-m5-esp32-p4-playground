@@ -1,5 +1,5 @@
-#ifndef TMF8829_NET_H
-#define TMF8829_NET_H
+#ifndef NET_H
+#define NET_H
 
 #include <cstdint>
 #include <cstddef>
@@ -34,4 +34,4 @@ esp_err_t send_raw_frame_udp(const uint8_t *frameData, size_t length);
 }
 #endif
 
-#endif // TMF8829_NET_H
+#endif // NET_H

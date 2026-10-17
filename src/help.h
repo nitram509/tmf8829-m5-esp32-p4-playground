@@ -1,7 +1,7 @@
-#ifndef TMF8829_HELP_H
-#define TMF8829_HELP_H
+#ifndef HELP_H
+#define HELP_H
 
-#include <stdint.h>
+#include <cstdint>
 
 #ifdef __cplusplus
 extern "C" {
@@ -21,4 +21,4 @@ void printState();
 }
 #endif
 
-#endif // TMF8829_HELP_H
+#endif // HELP_H
