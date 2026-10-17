@@ -1,23 +1,13 @@
-/**************************************************************************************************
-* Copyright © 2024 ams-OSRAM AG                                                                   *
-* All rights are reserved.                                                                        *
-*                                                                                                 *
-* FOR FULL LICENSE TEXT SEE LICENSES-MIT.TXT                                                      *
-*                                                                                                 *
-**************************************************************************************************/
 
-/* TMF8829 Arduino Uno sample program */
-
-// ---------------------------------------------- includes ----------------------------------------
 #include <cstdio>
 #include <cstring>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
-#include "tmf8829_shim.h"
-#include "tmf8829.h"
-#include "tmf8829_app.h"
-#include "tmf8829_firmware.h"
-#include "tmf8829_help.h"
+#include "app.h"
+#include "tmf8829/tmf8829_shim.h"
+#include "tmf8829/tmf8829.h"
+#include "tmf8829/tmf8829_firmware.h"
+#include "tmf8829/tmf8829_help.h"
 
 #define TMF8829_APPLICATION_MINOR_VERSION    5
 

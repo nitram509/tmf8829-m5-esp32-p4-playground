@@ -2,7 +2,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "sdkconfig.h"
-#include "tmf8829_app.h"
+#include "app.h"
 
 #define UART_BAUD_RATE 2000000
 
