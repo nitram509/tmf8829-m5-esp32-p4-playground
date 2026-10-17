@@ -8,8 +8,7 @@
 
 static const char *TAG = "main";
 
-extern "C" void app_main(void)
-{
+extern "C" void app_main(void) {
     ESP_LOGI(TAG, "Starting TMF8829 application flow");
     initial_setup(1, UART_BAUD_RATE, CONFIG_TMF8829_SPI_CLOCK_HZ);
     while (main_loop()) {
