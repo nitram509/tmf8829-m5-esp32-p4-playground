@@ -78,3 +78,5 @@ Desktop.ini
 *.sln.docstates # Visual Studio
 
 .vscode/
+.idea/
+*.iml
