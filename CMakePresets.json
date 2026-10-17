@@ -12,7 +12,8 @@
       "description": "Development configuration",
       "binaryDir": "${sourceDir}/build/default",
       "cacheVariables": {
-        "SDKCONFIG": "${sourceDir}/build/default/sdkconfig"
+        "SDKCONFIG": "${sourceDir}/build/default/sdkconfig",
+        "IDF_TARGET": "esp32p4"
       }
     },
     {

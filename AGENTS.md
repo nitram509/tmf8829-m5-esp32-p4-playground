@@ -13,5 +13,5 @@ VERY IMPORTANT: Ignore this folder for reading and never mnodify it. You're only
 
 The `idf.py` requires an environment to be activated.
 Always load the environment variables before running a `idf.py` command.
-Always use command concatenation with this prefix `source '~/.espressif/tools/activate_idf_v5.4.3.sh &&` before running any `idf.py` command.
-Example: `source '~/.espressif/tools/activate_idf_v5.4.3.sh' && idf.py clean` to clean the build.
+Always use command concatenation with this prefix `source "~/.espressif/tools/activate_idf_v5.4.3.sh" &&` before running any `idf.py` command.
+Example: `source ~/.espressif/tools/activate_idf_v5.4.3.sh && idf.py clean` to clean the build.
