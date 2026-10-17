@@ -8,6 +8,7 @@
 
 #include "image_pgm.h"
 #include "app.h"
+#include "net.h"
 
 
 /** @brief Function to decode a result frame payload and print it in ASCII PGM (P2) format.
@@ -375,6 +376,8 @@ int8_t singleShot48x32HexDump() {
         PRINT_LN();
         printHexDump(buf, sz);
         PRINT_LN();
+
+        send_raw_frame_udp(buf, sz);
     }
 
     PRINT_CONST_STR(F( "--- Decoded 48x32 Frame PGM Format ---" ));

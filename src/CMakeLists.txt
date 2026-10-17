@@ -2,8 +2,9 @@ idf_component_register(SRCS "main.cpp"
                             "app.cpp"
                             "image_pgm.cpp"
                             "help.cpp"
+                            "net.cpp"
                             "tmf8829/tmf8829_firmware.c"
                             "tmf8829/tmf8829.c"
                             "tmf8829/tmf8829_shim.cpp"
                        INCLUDE_DIRS "." "tmf8829"
-                       REQUIRES driver esp_driver_gpio esp_driver_spi esp_timer esp_rom freertos log)
+                       REQUIRES driver esp_driver_gpio esp_driver_spi esp_timer esp_rom freertos log esp_eth esp_netif esp_event lwip)

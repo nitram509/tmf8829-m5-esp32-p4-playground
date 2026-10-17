@@ -110,10 +110,12 @@ The application provides an interactive command-line interface via the monitor c
 ## Project Structure
 
 - `src/main.cpp`: Application entry point (`app_main`), orchestrating the program flow and main task loop.
+- `src/app.cpp` & `src/app.h`: High-level application logic, state machine, and interactive command parser.
+- `src/image_pgm.cpp` & `src/image_pgm.h`: ASCII PGM (P2) image exporter, distance map rendering, and single-shot frame capture routines.
+- `src/help.cpp` & `src/help.h`: Helper functions for human-readable mode names, pre-configuration labels, and optical profile descriptions.
+- `src/net.cpp` & `src/net.h`: Ethernet driver initialization (ESP32-P4 EMAC + IP101 PHY) and raw sensor frame UDP packet forwarder.
 - `src/tmf8829/`: Dedicated subsystem for TMF8829 sensor communication, control, and data acquisition:
-  - `tmf8829_app.cpp` & `tmf8829_app.h`: Sensor application logic, state machine, single-shot 48x32 PGM exporter, and interactive command parser.
   - `tmf8829_shim.cpp` & `tmf8829_shim.h`: ESP-IDF hardware shim layer (SPI bus with DMA, GPIO for `DE`, USB Serial/JTAG polling, FreeRTOS yields).
-  - `tmf8829_help.cpp` & `tmf8829_help.h`: Helper functions for human-readable mode names, pre-configuration labels, and optical profile descriptions.
   - `tmf8829.c` & `tmf8829.h`: Core ams OSRAM driver implementing SPI protocol framing, bootloader control, firmware download, and result parsing.
   - `tmf8829_firmware.c` & `tmf8829_firmware.h`: Pre-compiled firmware hex image loaded into TMF8829 RAM during initialization.
 - `documentation/`: Sensor datasheet (`DS001140`), communication protocol application note (`AN001096`), and the original Arduino reference implementation.

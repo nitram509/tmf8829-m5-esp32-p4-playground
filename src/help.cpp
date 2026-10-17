@@ -4,7 +4,6 @@
 #include "app.h"
 #include "help.h"
 
-#define DELAY_PRINT_HELP  10000 /**< delay between the prints */
 #define TMF8829_APPLICATION_MINOR_VERSION    5
 
 
@@ -64,42 +63,24 @@ const char * getFpModeName ( uint8_t fpMode )
  */
 void printHelp ( )
 {
-  delayInMicroseconds( DELAY_PRINT_HELP );
   PRINT_CONST_STR( F(  "TMF8829" ) );
-  delayInMicroseconds( DELAY_PRINT_HELP );
   PRINT_LN( ); PRINT_CONST_STR( F(  "a ..... dump registers" ) );
-  delayInMicroseconds( DELAY_PRINT_HELP );
   PRINT_LN( ); PRINT_CONST_STR( F(  "c / p . next configuration / profile" ) );
-  delayInMicroseconds( DELAY_PRINT_HELP );
   PRINT_LN( ); PRINT_CONST_STR( F(  "d ..... disable device" ) );
-  delayInMicroseconds( DELAY_PRINT_HELP );
   PRINT_LN( ); PRINT_CONST_STR( F(  "e ..... enable device and download TMF8829 FW" ) );
-  delayInMicroseconds( DELAY_PRINT_HELP );
   PRINT_LN( ); PRINT_CONST_STR( F(  "h ..... help " ) );
-  delayInMicroseconds( DELAY_PRINT_HELP );
   PRINT_LN( ); PRINT_CONST_STR( F(  "m ..... measure" ) );
-  delayInMicroseconds( DELAY_PRINT_HELP );
   PRINT_LN( ); PRINT_CONST_STR( F(  "P ..... power down (standby)" ) );
-  delayInMicroseconds( DELAY_PRINT_HELP );
   PRINT_LN( ); PRINT_CONST_STR( F(  "s ..... stop measure" ) );
-  delayInMicroseconds( DELAY_PRINT_HELP );
   PRINT_LN( ); PRINT_CONST_STR( F(  "u ..... get configuration" ) );
-  delayInMicroseconds( DELAY_PRINT_HELP );
   PRINT_LN( ); PRINT_CONST_STR( F(  "w ..... wakeup" ) );
-  delayInMicroseconds( DELAY_PRINT_HELP );
   PRINT_LN( ); PRINT_CONST_STR( F(  "x ..... clock corr on/off" ) );
-  delayInMicroseconds( DELAY_PRINT_HELP );
   PRINT_LN( ); PRINT_CONST_STR( F(  "z ..... histogram" ) );
-  delayInMicroseconds( DELAY_PRINT_HELP );
   PRINT_LN( ); PRINT_CONST_STR( F(  "+ ..... log+" ) );
-  delayInMicroseconds( DELAY_PRINT_HELP );
   PRINT_LN( ); PRINT_CONST_STR( F(  "- ..... log-" ) );
-  delayInMicroseconds( DELAY_PRINT_HELP );
   PRINT_LN( ); PRINT_CONST_STR( F(  "1 / o . single-shot 48x32 frame hexdump & PGM" ) );
-  delayInMicroseconds( DELAY_PRINT_HELP );
   PRINT_LN( ); PRINT_CONST_STR( F(  "# ..... reset" ) );
-  delayInMicroseconds( DELAY_PRINT_HELP );
-  PRINT_LN( ); 
+  PRINT_LN( );
 }
 
 /** @brief Function will print the Arduino version,
