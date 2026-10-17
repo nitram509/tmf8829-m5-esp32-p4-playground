@@ -15,8 +15,6 @@
 // ---------------------------------------------- includes ----------------------------------------
 #include <stddef.h>
 #include <stdint.h>
-#include "tmf8829.h"
-#include "tmf8829_shim.h"
 
 // ---------------------------------------------- defines -----------------------------------------
 /* tmf application states */
@@ -28,20 +26,10 @@
 
 #define NR_LOG_LEVELS               9 /**< number of log-levels in application */
 
-// ---------------------------------------------- functions & variables ---------------------------
+// ---------------------------------------------- functions ---------------------------------------
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-extern tmf8829Driver tmf8829;
-extern uint8_t logLevel;
-extern int8_t stateTmf8829;
-extern volatile uint8_t irqTriggered;
-extern const uint8_t logLevels[ NR_LOG_LEVELS ];
-
-void resetAppState( void );
-void interruptHandler( void );
-int8_t serialInput( void );
 
 void initial_setup( uint8_t logLevelIdx, uint32_t baudrate, uint32_t spiClockSpeedInHz );
 int8_t main_loop( void );
