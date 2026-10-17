@@ -5,7 +5,7 @@
 
 This project provides an ESP-IDF firmware application for the **ams OSRAM TMF8829** multi-zone direct Time-of-Flight (dToF) optical distance sensor running on an **ESP32-P4** (e.g., M5Stack Unit PoE-P4).
 
-It is ported from the official ams OSRAM Arduino reference driver (`TMF8829_Driver_Arduino_v1.2.5`), preserving the original driver architecture in `main/` while integrating an ESP-IDF hardware shim for high-speed SPI communication (with DMA), GPIO control, USB Serial/JTAG console interaction, and FreeRTOS task yielding for watchdog safety.
+It is ported from the official ams OSRAM Arduino reference driver (`TMF8829_Driver_Arduino_v1.2.5`), preserving the original driver architecture in `src/` while integrating an ESP-IDF hardware shim for high-speed SPI communication (with DMA), GPIO control, USB Serial/JTAG console interaction, and FreeRTOS task yielding for watchdog safety.
 
 ---
 
@@ -109,14 +109,14 @@ The application provides an interactive command-line interface via the monitor c
 
 ## Project Structure
 
-- `main/main.c`: Application entry point (`app_main`), initializes and runs the `initial_setup()` / `main_loop()` lifecycle.
-- `main/tmf8829_shim.cpp` & `tmf8829_shim.h`: ESP-IDF hardware shim layer:
+- `src/main.c`: Application entry point (`app_main`), initializes and runs the `initial_setup()` / `main_loop()` lifecycle.
+- `src/tmf8829_shim.cpp` & `tmf8829_shim.h`: ESP-IDF hardware shim layer:
   - SPI bus and device initialization/transactions with DMA support.
   - GPIO output configuration for Device Enable (`DE`).
   - USB Serial/JTAG console non-blocking character polling.
   - FreeRTOS cooperative task delays and yield points to satisfy the Task Watchdog Timer (TWDT).
-- `main/tmf8829_app.cpp` & `tmf8829_app.h`: High-level application logic, state machine, single-shot 48x32 PGM exporter, and interactive command parser.
-- `main/tmf8829_help.cpp` & `tmf8829_help.h`: Helper functions for human-readable mode names, pre-configuration labels, and optical profile descriptions.
-- `main/tmf8829.c` & `tmf8829.h`: Core ams OSRAM driver implementing SPI protocol framing (`0x02` write, `0x03` read), bootloader control, firmware download, and result parsing.
-- `main/tmf8829_firmware.c` & `tmf8829_firmware.h`: Pre-compiled firmware hex image loaded into TMF8829 RAM during initialization.
+- `src/tmf8829_app.cpp` & `tmf8829_app.h`: High-level application logic, state machine, single-shot 48x32 PGM exporter, and interactive command parser.
+- `src/tmf8829_help.cpp` & `tmf8829_help.h`: Helper functions for human-readable mode names, pre-configuration labels, and optical profile descriptions.
+- `src/tmf8829.c` & `tmf8829.h`: Core ams OSRAM driver implementing SPI protocol framing (`0x02` write, `0x03` read), bootloader control, firmware download, and result parsing.
+- `src/tmf8829_firmware.c` & `tmf8829_firmware.h`: Pre-compiled firmware hex image loaded into TMF8829 RAM during initialization.
 - `documentation/`: Sensor datasheet (`DS001140`), communication protocol application note (`AN001096`), and the original Arduino reference implementation.

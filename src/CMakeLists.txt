@@ -4,4 +4,5 @@ idf_component_register(SRCS "tmf8829_firmware.c"
                             "tmf8829_shim.cpp"
                             "tmf8829_app.cpp"
                             "tmf8829_help.cpp"
-                       INCLUDE_DIRS ".")
+                       INCLUDE_DIRS "."
+                       REQUIRES driver esp_driver_gpio esp_driver_spi esp_timer esp_rom freertos log)
