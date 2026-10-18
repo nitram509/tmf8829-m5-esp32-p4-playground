@@ -1,4 +1,5 @@
 #include "net_handler.h"
+#include "net.h"
 #include "app.h"
 #include "tmf8829/tmf8829.h"
 #include "protobuf/message.pb.h"
@@ -34,6 +35,11 @@ static bool encode_string_callback(pb_ostream_t *stream, const pb_field_t *field
 }
 
 static void handle_get_device_info(int sock, const struct sockaddr_in &source_addr) {
+    if (!is_network_connected()) {
+        ESP_LOGW(TAG, "Cannot send DeviceInfo UDP response: network not connected or no IP assigned");
+        return;
+    }
+
     char fw_ver[32] = {0};
     char chip_ver[32] = {0};
     char chip_serial[32] = {0};

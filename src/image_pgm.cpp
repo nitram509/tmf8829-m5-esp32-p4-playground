@@ -144,7 +144,7 @@ int8_t singleShot48x32HexDump() {
 
     PRINT_CONST_STR(F( "==================================================" ));
     PRINT_LN();
-    PRINT_CONST_STR(F( "=== TMF8829 48x32 Single-Shot Capture & Hexdump ===" ));
+    PRINT_CONST_STR(F( "=== TMF8829 48x32 Single-Shot Capture ===" ));
     PRINT_LN();
     PRINT_CONST_STR(F( "==================================================" ));
     PRINT_LN();
@@ -322,8 +322,8 @@ int8_t singleShot48x32HexDump() {
         return APP_ERROR_NO_RESULT;
     }
 
-    // 5. Print decoded info and Hexdumps
-    PRINT_CONST_STR(F( "[4/4] Printing frame hexdumps and PGM image:" ));
+    // 5. Print decoded info and PGM image
+    PRINT_CONST_STR(F( "[4/4] Printing frame metadata and PGM image:" ));
     PRINT_LN();
 
     for (int i = 0; i < 2; i++) {
@@ -370,14 +370,6 @@ int8_t singleShot48x32HexDump() {
             PRINT_CONST_STR(F( " (MISMATCH)" ));
         }
         PRINT_LN();
-        PRINT_LN();
-
-        PRINT_CONST_STR(F( "--- Raw Frame Hexdump ---" ));
-        PRINT_LN();
-        printHexDump(buf, sz);
-        PRINT_LN();
-
-        send_raw_frame_udp(buf, sz);
     }
 
     PRINT_CONST_STR(F( "--- Decoded 48x32 Frame PGM Format ---" ));
@@ -385,6 +377,8 @@ int8_t singleShot48x32HexDump() {
     printDistanceMapPGM(distances, 48, 32);
     PRINT_CONST_STR(F( "==================================================" ));
     PRINT_LN();
+
+    send_distance_map_pgm_udp(distances, 48, 32);
 
     return APP_SUCCESS_OK;
 }

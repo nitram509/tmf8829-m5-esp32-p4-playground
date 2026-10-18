@@ -78,7 +78,7 @@ The application provides an interactive command-line interface via the monitor c
 | `s` | **Stop** | Stops continuous measurement |
 | `c` / `p` | **Next Configuration** | Cycles through optical configurations (8x8, 16x16, 32x32, 48x32, high accuracy, etc.) |
 | `u` | **Get Configuration** | Reads and displays current configuration registers |
-| `1` / `o` / `O` | **Single-Shot 48x32 Dump & PGM** | Captures a 48x32 frame (dual sub-frames), prints raw hex dumps, and outputs ASCII PGM (P2) image |
+| `1` / `o` / `O` | **Single-Shot 48x32 & PGM** | Captures a 48x32 frame (dual sub-frames), outputs ASCII PGM (P2) image, and transmits PGM via UDP |
 | `a` | **Dump Registers** | Dumps 256 sensor registers over SPI (when stopped) |
 | `w` | **Wakeup** | Wakes up sensor from power-down state |
 | `P` | **Power Down** | Puts sensor into power-down (standby) state |
@@ -100,10 +100,12 @@ The application provides an interactive command-line interface via the monitor c
 5. Press `s` to stop measurement at any time.
 
 #### 2. Single-Shot 48x32 Capture & PGM Image Export
-1. Press `e` to ensure the device is initialized.
-2. Press `1` (or `o` / `O`).
-3. The firmware configures 48x32 mode, captures both Sub-frame 0 (even rows) and Sub-frame 1 (odd rows), outputs raw SPI frame hexdumps, and prints the complete 1536-pixel depth map in Netpbm ASCII PGM (`P2`) format (48 pixels per row across 32 rows).
-4. The PGM text can be copied or redirected into a `.pgm` file and viewed in standard image viewers (GIMP, ImageMagick, VS Code PGM viewer).
+1. Press `e` (or wait 5 seconds after startup/reset for auto-enable) to ensure the device is initialized.
+2. Once enabled, an automatic handler captures and transmits a 48x32 snapshot PGM image via UDP every 7 seconds.
+3. You can also trigger a capture manually at any time by pressing `1` (or `o` / `O`).
+4. The firmware configures 48x32 mode, captures both Sub-frame 0 (even rows) and Sub-frame 1 (odd rows), and prints the complete 1536-pixel depth map in Netpbm ASCII PGM (`P2`) format (48 pixels per row across 32 rows).
+5. The complete ASCII PGM image is also automatically transmitted as a UDP packet to the configured target host and port.
+6. The PGM text can be copied or redirected into a `.pgm` file and viewed in standard image viewers (GIMP, ImageMagick, VS Code PGM viewer).
 
 ---
 
@@ -138,7 +140,7 @@ protoc --proto_path=../../proto --nanopb_out="$(pwd)" message.proto
 - `src/app.cpp` & `src/app.h`: High-level application logic, state machine, and interactive command parser.
 - `src/image_pgm.cpp` & `src/image_pgm.h`: ASCII PGM (P2) image exporter, distance map rendering, and single-shot frame capture routines.
 - `src/help.cpp` & `src/help.h`: Helper functions for human-readable mode names, pre-configuration labels, and optical profile descriptions.
-- `src/net.cpp` & `src/net.h`: Ethernet driver initialization (ESP32-P4 EMAC + IP101 PHY) and raw sensor frame UDP packet forwarder.
+- `src/net.cpp` & `src/net.h`: Ethernet driver initialization (ESP32-P4 EMAC + IP101 PHY), raw/PGM image UDP forwarder, and periodic device info / IP address UDP beacon (3x at 5s interval, then every 60s).
 - `src/net_handler.cpp` & `src/net_handler.h`: UDP server listener and Protobuf request handler (`Request` / `GetDeviceInfo` -> `DeviceInfo` response).
 - `src/protobuf/`: Protocol Buffers definitions and auto-generated Nanopb bindings (`message.pb.c`, `message.pb.h`).
 - `src/vendor/nanopb-0.4.9.2/`: Nanopb protocol buffers library (`pb.h`, `pb_common.c`, `pb_encode.c`, `pb_decode.c`).

@@ -77,6 +77,11 @@ uint8_t binaryCmd; /**< currently active binary command identifier (if any) */
 uint8_t binaryBufFill; /**< fill level of the binary command payload buffer */
 uint8_t binaryBuf[TMF8829_BINARY_BUF_SIZE]; /**< binary command payload buffer */
 
+static TickType_t s_start_tick = 0;
+static bool s_auto_enabled = false;
+static TickType_t s_last_snapshot_tick = 0;
+static bool s_snapshot_timer_active = false;
+
 // ---------------------------------------------- function declaration ------------------------------
 
 static void printRegisters(uint8_t regAddr, uint16_t len, char seperator);
@@ -235,6 +240,7 @@ void enable(uint32_t imageStartAddress, const unsigned char *image, int32_t imag
                 tmf8829ReadDeviceInfo(&tmf8829);
                 printDeviceInfo();
                 printConfigurationDetails();
+                tmf8829CmdWritePage(&tmf8829);
             } else {
                 stateTmf8829 = TMF8829_STATE_ERROR;
             }
@@ -631,6 +637,8 @@ int8_t handleCharInput(char key) {
     } else if (key == '1' || key == 'o' || key == 'O') // single shot 48x32 frame hexdump
     {
         singleShot48x32HexDump();
+        s_last_snapshot_tick = xTaskGetTickCount();
+        s_snapshot_timer_active = true;
     } else if (key == '#') // reset chip to test the reset function itself
     {
         reset();
@@ -724,9 +732,47 @@ void initial_setup(uint8_t logLevelIdx, uint32_t baudrate, uint32_t spiClockSpee
     init_network();
     start_net_handler();
     printHelp();
+
+    s_start_tick = xTaskGetTickCount();
+    s_auto_enabled = false;
+    s_last_snapshot_tick = 0;
+    s_snapshot_timer_active = false;
 }
 
 int8_t main_loop(void) {
+    if (stateTmf8829 == TMF8829_STATE_DISABLED || stateTmf8829 == TMF8829_STATE_ERROR) {
+        if ((xTaskGetTickCount() - s_start_tick) >= pdMS_TO_TICKS(5000)) {
+            static TickType_t s_last_enable_attempt_tick = 0;
+            if (s_last_enable_attempt_tick == 0 || (xTaskGetTickCount() - s_last_enable_attempt_tick) >= pdMS_TO_TICKS(5000)) {
+                s_last_enable_attempt_tick = xTaskGetTickCount();
+                PRINT_CONST_STR(F( "Auto-enabling TMF8829 device (5s after start/reset)..." ));
+                PRINT_LN();
+                enable(tmf8829_image_start, tmf8829_firmware, tmf8829_image_length);
+                printState();
+                if (stateTmf8829 == TMF8829_STATE_STOPPED) {
+                    s_snapshot_timer_active = false;
+                }
+            }
+        }
+    }
+
+    if (stateTmf8829 == TMF8829_STATE_STOPPED) {
+        if (!s_snapshot_timer_active) {
+            PRINT_CONST_STR(F( "Auto-snapshot: capturing and sending initial 48x32 frame..." ));
+            PRINT_LN();
+            singleShot48x32HexDump();
+            s_last_snapshot_tick = xTaskGetTickCount();
+            s_snapshot_timer_active = true;
+        } else if ((xTaskGetTickCount() - s_last_snapshot_tick) >= pdMS_TO_TICKS(7000)) {
+            PRINT_CONST_STR(F( "Auto-snapshot: capturing and sending 48x32 frame (every 7s)..." ));
+            PRINT_LN();
+            singleShot48x32HexDump();
+            s_last_snapshot_tick = xTaskGetTickCount();
+        }
+    } else {
+        s_snapshot_timer_active = false;
+    }
+
     int8_t res = APP_SUCCESS_OK;
     uint8_t intStatus = 0;
     int8_t exit = serialInput(); // handle any keystrokes from UART
@@ -769,6 +815,7 @@ int8_t main_loop(void) {
 }
 
 void final_clean_shutdown(void) {
+    stop_device_info_beacon();
     stop_net_handler();
     tmf8829Disable(&tmf8829);
     clrInterruptHandler();

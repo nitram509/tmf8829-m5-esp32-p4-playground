@@ -78,7 +78,7 @@ void printHelp ( )
   PRINT_LN( ); PRINT_CONST_STR( F(  "z ..... histogram" ) );
   PRINT_LN( ); PRINT_CONST_STR( F(  "+ ..... log+" ) );
   PRINT_LN( ); PRINT_CONST_STR( F(  "- ..... log-" ) );
-  PRINT_LN( ); PRINT_CONST_STR( F(  "1 / o . single-shot 48x32 frame hexdump & PGM" ) );
+  PRINT_LN( ); PRINT_CONST_STR( F(  "1 / o . single-shot 48x32 frame & PGM" ) );
   PRINT_LN( ); PRINT_CONST_STR( F(  "# ..... reset" ) );
   PRINT_LN( );
 }
