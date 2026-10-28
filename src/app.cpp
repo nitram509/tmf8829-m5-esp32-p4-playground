@@ -78,7 +78,6 @@ uint8_t binaryBufFill; /**< fill level of the binary command payload buffer */
 uint8_t binaryBuf[TMF8829_BINARY_BUF_SIZE]; /**< binary command payload buffer */
 
 static TickType_t s_start_tick = 0;
-static bool s_auto_enabled = false;
 static TickType_t s_last_snapshot_tick = 0;
 static bool s_snapshot_timer_active = false;
 
@@ -112,10 +111,10 @@ static void printConfigurationDetails() {
         return;
     }
 
-    uint16_t period = (uint16_t) tmf8829.config[TMF8829_CFG_PERIOD_MS_LSB - TMF8829_CFG_PERIOD_MS_LSB]
-                      | ((uint16_t) tmf8829.config[TMF8829_CFG_PERIOD_MS_MSB - TMF8829_CFG_PERIOD_MS_LSB] << 8);
-    uint16_t kiloIter = (uint16_t) tmf8829.config[TMF8829_CFG_KILO_ITERATIONS_LSB - TMF8829_CFG_PERIOD_MS_LSB]
-                        | ((uint16_t) tmf8829.config[TMF8829_CFG_KILO_ITERATIONS_MSB - TMF8829_CFG_PERIOD_MS_LSB] << 8);
+    uint16_t period = static_cast<uint16_t>(tmf8829.config[TMF8829_CFG_PERIOD_MS_LSB - TMF8829_CFG_PERIOD_MS_LSB])
+                      | (static_cast<uint16_t>(tmf8829.config[TMF8829_CFG_PERIOD_MS_MSB - TMF8829_CFG_PERIOD_MS_LSB]) << 8);
+    uint16_t kiloIter = static_cast<uint16_t>(tmf8829.config[TMF8829_CFG_KILO_ITERATIONS_LSB - TMF8829_CFG_PERIOD_MS_LSB])
+                        | (static_cast<uint16_t>(tmf8829.config[TMF8829_CFG_KILO_ITERATIONS_MSB - TMF8829_CFG_PERIOD_MS_LSB]) << 8);
     uint8_t fpMode = tmf8829.config[TMF8829_CFG_FP_MODE - TMF8829_CFG_PERIOD_MS_LSB];
     uint8_t dumpHist = tmf8829.config[TMF8829_CFG_DUMP_HISTOGRAMS - TMF8829_CFG_PERIOD_MS_LSB];
 
@@ -149,7 +148,7 @@ static void printConfigurationDetails() {
     PRINT_CONST_STR(F( " Iterations: " ));
     PRINT_INT(kiloIter);
     PRINT_CONST_STR(F( " kiter (" ));
-    PRINT_INT((uint32_t)kiloIter * 1024);
+    PRINT_INT(static_cast<uint32_t>(kiloIter) * 1024);
     PRINT_CONST_STR(F( " pulses)" ));
     PRINT_LN();
     PRINT_CONST_STR(F( " Histogram Dumping: " ));
@@ -216,8 +215,6 @@ void getConfiguration() {
   * @param imageSizeInBytes ... image size
  */
 void enable(uint32_t imageStartAddress, const unsigned char *image, int32_t imageSizeInBytes) {
-    int8_t status;
-
     if (stateTmf8829 == TMF8829_STATE_DISABLED || stateTmf8829 == TMF8829_STATE_ERROR) {
         tmf8829Enable(&tmf8829);
         delayInMicroseconds(ENABLE_TIME_MS * 1000);
@@ -230,7 +227,7 @@ void enable(uint32_t imageStartAddress, const unsigned char *image, int32_t imag
             tmf8829BootloaderCmdI2cOff(&tmf8829); // SPI is used
 
             PRINT_CONST_STR(F( " DWNL FW and start App" ));
-            status = tmf8829DownloadFirmware(&tmf8829, imageStartAddress, image, imageSizeInBytes, 1 /* over fifo */);
+            int8_t status = tmf8829DownloadFirmware(&tmf8829, imageStartAddress, image, imageSizeInBytes, 1 /* over fifo */);
             PRINT_LN();
 
             if (status == BL_SUCCESS_OK) {
@@ -355,20 +352,18 @@ void wakeup() {
 void printRegisters(uint8_t regAddr, uint16_t len, char seperator) {
     if (stateTmf8829 != TMF8829_STATE_DISABLED) {
         uint8_t buf[NR_REGS_PER_LINE];
-        uint16_t i;
-        uint8_t j;
 
-        for (i = 0; i < len; i += NR_REGS_PER_LINE)
+        for (uint16_t i = 0; i < len; i += NR_REGS_PER_LINE)
         // if len is not a multiple of 8, we will print a bit more registers ....
         {
-            uint8_t *ptr = buf;
+            const uint8_t *ptr = buf;
             spiRxReg(&tmf8829, tmf8829.i2cSlaveAddress, regAddr, NR_REGS_PER_LINE, buf);
             if (seperator == ' ') {
                 PRINT_CONST_STR(F( "0x" ));
                 PRINT_UINT_HEX(regAddr);
                 PRINT_CONST_STR(F( ": " ));
             }
-            for (j = 0; j < NR_REGS_PER_LINE; j++) {
+            for (uint8_t j = 0; j < NR_REGS_PER_LINE; j++) {
                 PRINT_CONST_STR(F( " 0x" ));
                 PRINT_UINT_HEX(*ptr++);
                 PRINT_CHAR(seperator);
@@ -561,7 +556,7 @@ int8_t handleBinaryInput(uint8_t byte) {
         }
     } else {
         if (binaryBufFill >= TMF8829_BINARY_BUF_SIZE)
-        // prevent buffer overflow (this check is not neccessary when TMF8829_BINARY_BUF_SIZE is correctly set to the maximum payload size of all binary commands)
+        // prevent buffer overflow (this check is not necessary when TMF8829_BINARY_BUF_SIZE is correctly set to the maximum payload size of all binary commands)
         {
             PRINT_CONST_STR(F( "#Err,BinaryBuf" ));
             PRINT_LN();
@@ -674,7 +669,7 @@ int8_t serialInput() {
     while (read) {
         int8_t res;
         if (isInBinaryInputMode()) {
-            res = handleBinaryInput((uint8_t) rx);
+            res = handleBinaryInput(static_cast<uint8_t>(rx));
         } else {
             res = handleCharInput(rx);
         }
@@ -734,12 +729,11 @@ void initial_setup(uint8_t logLevelIdx, uint32_t baudrate, uint32_t spiClockSpee
     printHelp();
 
     s_start_tick = xTaskGetTickCount();
-    s_auto_enabled = false;
     s_last_snapshot_tick = 0;
     s_snapshot_timer_active = false;
 }
 
-int8_t main_loop(void) {
+int8_t main_loop() {
     if (stateTmf8829 == TMF8829_STATE_DISABLED || stateTmf8829 == TMF8829_STATE_ERROR) {
         if ((xTaskGetTickCount() - s_start_tick) >= pdMS_TO_TICKS(5000)) {
             static TickType_t s_last_enable_attempt_tick = 0;

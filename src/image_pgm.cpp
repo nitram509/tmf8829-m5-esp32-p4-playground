@@ -33,7 +33,7 @@ void printFramePGM(const uint8_t *frame, size_t frameLen) {
         pixelSize = 3;
     }
 
-    const size_t pixelStart = TMF8829_PRE_HEADER_SIZE + TMF8829_FRAME_HEADER_SIZE;
+    constexpr size_t pixelStart = TMF8829_PRE_HEADER_SIZE + TMF8829_FRAME_HEADER_SIZE;
     const size_t pixelDataBytes = (frameLen > (pixelStart + TMF8829_FRAME_FOOTER_SIZE))
                                       ? (frameLen - pixelStart - TMF8829_FRAME_FOOTER_SIZE)
                                       : 0;
@@ -66,7 +66,7 @@ void printFramePGM(const uint8_t *frame, size_t frameLen) {
         if (layout & TMF8829_CFG_RESULT_FORMAT_XTALK_MASK) { idx += 2; }
 
         if ((offset + idx + 2) <= frameLen) {
-            uint16_t dist = (uint16_t) frame[offset + idx] | ((uint16_t) frame[offset + idx + 1] << 8);
+            uint16_t dist = static_cast<uint16_t>(frame[offset + idx]) | (static_cast<uint16_t>(frame[offset + idx + 1]) << 8);
             if (tmf8829.clkCorrectionEnable) {
                 dist = tmf8829CorrectDistance(&tmf8829, dist);
             }
@@ -87,7 +87,7 @@ void printDistanceMapPGM(const uint16_t *distances, uint16_t width, uint16_t hei
         return;
     }
 
-    uint32_t totalPixels = (uint32_t) width * height;
+    uint32_t totalPixels = static_cast<uint32_t>(width) * height;
     uint16_t maxDist = 0;
     for (uint32_t i = 0; i < totalPixels; i++) {
         if (distances[i] > maxDist) {
@@ -170,16 +170,13 @@ int8_t singleShot48x32HexDump() {
     stateTmf8829 = TMF8829_STATE_MEASURE;
 
     // 3. Wait for 48x32 frames (2 sub-frames: even and odd rows)
-    static uint16_t distances[1536];
-    memset(distances, 0, sizeof(distances));
-    static uint8_t rawFrames[2][4096];
-    memset(rawFrames, 0, sizeof(rawFrames));
+    static uint16_t distances[1536] = {};
+    static uint8_t rawFrames[2][4096] = {};
     size_t rawFrameSizes[2] = {0, 0};
-    static uint8_t frameBuffer[4096];
-    memset(frameBuffer, 0, sizeof(frameBuffer));
+    static uint8_t frameBuffer[4096] = {};
     bool subFrameSeen[2] = {false, false};
     int framesCaptured = 0;
-    const int timeoutMs = 15000;
+    constexpr int timeoutMs = 15000;
     int elapsedMs = 0;
     int lastDotMs = 0;
 
@@ -254,8 +251,8 @@ int8_t singleShot48x32HexDump() {
                         pixelSize = 3;
                     }
 
-                    const size_t pixelStart = TMF8829_PRE_HEADER_SIZE + TMF8829_FRAME_HEADER_SIZE;
-                    const int pixelsInSubFrame = 768; // 16 rows * 48 columns
+                    constexpr size_t pixelStart = TMF8829_PRE_HEADER_SIZE + TMF8829_FRAME_HEADER_SIZE;
+                    constexpr int pixelsInSubFrame = 768; // 16 rows * 48 columns
 
                     for (int m = 0; m < pixelsInSubFrame; m++) {
                         int r = m / 48; // row in sub-frame (0..15)
@@ -270,8 +267,8 @@ int8_t singleShot48x32HexDump() {
                             if (layout & TMF8829_CFG_RESULT_FORMAT_NOISE_STRENGTH_MASK) { idx += 2; }
                             if (layout & TMF8829_CFG_RESULT_FORMAT_XTALK_MASK) { idx += 2; }
                             if ((offset + idx + 2) <= totalFrameSize) {
-                                uint16_t dist = (uint16_t) frameBuffer[offset + idx] | (
-                                                    (uint16_t) frameBuffer[offset + idx + 1] << 8);
+                                uint16_t dist = static_cast<uint16_t>(frameBuffer[offset + idx]) | (
+                                                    static_cast<uint16_t>(frameBuffer[offset + idx + 1]) << 8);
                                 if (tmf8829.clkCorrectionEnable) {
                                     dist = tmf8829CorrectDistance(&tmf8829, dist);
                                 }
@@ -403,7 +400,7 @@ void printHexDump(const uint8_t *data, size_t len) {
 
         // Hex bytes
         for (size_t j = 0; j < 16; j++) {
-            if (j == 8 && pos < (int) sizeof(lineBuf)) {
+            if (j == 8 && pos < static_cast<int>(sizeof(lineBuf))) {
                 lineBuf[pos++] = ' ';
             }
             if ((i + j) < len) {
@@ -414,14 +411,14 @@ void printHexDump(const uint8_t *data, size_t len) {
         }
 
         // ASCII characters
-        if (pos < (int) sizeof(lineBuf)) {
+        if (pos < static_cast<int>(sizeof(lineBuf))) {
             pos += snprintf(lineBuf + pos, sizeof(lineBuf) - pos, " |");
         }
-        for (size_t j = 0; j < 16 && (i + j) < len && pos < (int) sizeof(lineBuf); j++) {
+        for (size_t j = 0; j < 16 && (i + j) < len && pos < static_cast<int>(sizeof(lineBuf)); j++) {
             uint8_t c = data[i + j];
-            lineBuf[pos++] = (c >= 32 && c <= 126) ? (char) c : '.';
+            lineBuf[pos++] = (c >= 32 && c <= 126) ? static_cast<char>(c) : '.';
         }
-        if (pos < (int) sizeof(lineBuf)) {
+        if (pos < static_cast<int>(sizeof(lineBuf))) {
             lineBuf[pos++] = '|';
         }
         lineBuf[pos] = '\0';

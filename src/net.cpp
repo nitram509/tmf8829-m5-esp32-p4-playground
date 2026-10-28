@@ -66,16 +66,14 @@ static void device_info_beacon_task(void *pvParameters) {
         if (is_network_connected()) {
             format_device_info_string(msg_buf, sizeof(msg_buf), s_device_ip_str);
 
-            int sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_IP);
-            if (sock >= 0) {
-                struct timeval timeout = {
+            if (int sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_IP); sock >= 0) {
+                timeval timeout = {
                     .tv_sec = 2,
                     .tv_usec = 0,
                 };
                 setsockopt(sock, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof(timeout));
 
-                struct sockaddr_in dest_addr;
-                memset(&dest_addr, 0, sizeof(dest_addr));
+                sockaddr_in dest_addr = {};
                 dest_addr.sin_family = AF_INET;
                 dest_addr.sin_port = htons(CONFIG_TMF8829_UDP_TARGET_PORT);
 
@@ -341,7 +339,7 @@ esp_err_t send_distance_map_pgm_udp(const uint16_t *distances, uint16_t width, u
         return ESP_ERR_INVALID_ARG;
     }
 
-    uint32_t totalPixels = (uint32_t) width * height;
+    uint32_t totalPixels = static_cast<uint32_t>(width) * height;
     uint16_t maxDist = 0;
     for (uint32_t i = 0; i < totalPixels; i++) {
         if (distances[i] > maxDist) {
@@ -386,10 +384,10 @@ esp_err_t send_distance_map_pgm_udp(const uint16_t *distances, uint16_t width, u
 
     // Send PGM Header as first datagram
     int header_len = snprintf(line_buf, sizeof(line_buf), "P2\n# TMF8829 %ux%u Distance Map\n%u %u\n%u\n",
-                              (unsigned int) width, (unsigned int) height,
-                              (unsigned int) width, (unsigned int) height,
-                              (unsigned int) maxVal);
-    if (header_len > 0 && (size_t) header_len < sizeof(line_buf)) {
+                              static_cast<unsigned int>(width), static_cast<unsigned int>(height),
+                              static_cast<unsigned int>(width), static_cast<unsigned int>(height),
+                              static_cast<unsigned int>(maxVal));
+    if (header_len > 0 && static_cast<size_t>(header_len) < sizeof(line_buf)) {
         ssize_t sent = sendto(sock, line_buf, header_len, 0,
                               reinterpret_cast<struct sockaddr *>(&dest_addr), sizeof(dest_addr));
         if (sent > 0) {
@@ -403,8 +401,8 @@ esp_err_t send_distance_map_pgm_udp(const uint16_t *distances, uint16_t width, u
         int len = 0;
         for (uint16_t x = 0; x < width; x++) {
             int written = snprintf(line_buf + len, sizeof(line_buf) - len, (x < (width - 1)) ? "%u " : "%u\n",
-                                   (unsigned int) distances[y * width + x]);
-            if (written > 0 && (size_t) (len + written) < sizeof(line_buf)) {
+                                   static_cast<unsigned int>(distances[y * width + x]));
+            if (written > 0 && static_cast<size_t>(len + written) < sizeof(line_buf)) {
                 len += written;
             } else {
                 break;

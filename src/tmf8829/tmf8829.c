@@ -350,13 +350,13 @@ int tmf8829isDeviceWakeup ( tmf8829Driver * driver )
 
 
 void tmf8829Wakeup ( tmf8829Driver * driver )
-{ 
-  int statcpu = 0;
+{
   driver->dataBuffer[0] = 0; // clear before reading
   rxReg( driver, driver->i2cSlaveAddress, ENABLE, 1, driver->dataBuffer ); // read the enable register to determine power state
 
   if ( ( driver->dataBuffer[0] & TMF8829_ENABLE__cpu_ready__MASK ) == 0 )
   {
+    int statcpu = 0;
     driver->dataBuffer[0] = driver->dataBuffer[0] | ( ENABLE__powerup_select__RAM << ENABLE__powerup_select__SHIFT ); // select RAM
     driver->dataBuffer[0] = driver->dataBuffer[0] | TMF8829_ENABLE__pon__MASK;          // make sure to keep the remap bits
     txReg( driver, driver->i2cSlaveAddress, ENABLE, 1, driver->dataBuffer ); // set PON bit in enable register
@@ -393,11 +393,10 @@ void tmf8829Wakeup ( tmf8829Driver * driver )
 
 int8_t tmf8829IsCpuReady ( tmf8829Driver * driver, uint8_t waitInMs )
 {
-  int8_t status;
   do
   {
     // Check ENABLE register for cpu_ready bit
-    status = rxReg( driver, driver->i2cSlaveAddress, ENABLE, 1, driver->dataBuffer );
+    int8_t status = rxReg(driver, driver->i2cSlaveAddress, ENABLE, 1, driver->dataBuffer);
     if ( ( status == I2C_SUCCESS ) && ( driver->dataBuffer[0] & TMF8829_ENABLE__cpu_ready__MASK ) )
     {
       return 1;
@@ -427,7 +426,6 @@ int8_t tmf8829IsCpuReady ( tmf8829Driver * driver, uint8_t waitInMs )
 // function to check if a register has a specific value, with timeout
 static int8_t tmf8829CheckRegister ( tmf8829Driver * driver, uint8_t regAddr, uint8_t expected, uint8_t len, uint16_t timeoutInMs )
 {
-  uint8_t i;
   uint32_t t = getSysTick();
   do 
   {
@@ -453,7 +451,7 @@ static int8_t tmf8829CheckRegister ( tmf8829Driver * driver, uint8_t regAddr, ui
     PRINT_UINT_HEX( regAddr );
     PRINT_STR( " exp=0x" );
     PRINT_UINT_HEX( expected );
-    for ( i = 0; i < len; i++ )
+    for ( uint8_t i = 0; i < len; i++ )
     {
       PRINT_STR( " 0x" );
       PRINT_UINT_HEX( driver->dataBuffer[i] );
@@ -663,10 +661,9 @@ int8_t tmf8829DownloadFirmware ( tmf8829Driver * driver, uint32_t imageStartAddr
 // Reset clock correction calculation
 static void tmf8829ResetClockCorrection ( tmf8829Driver * driver )
 {
-  uint8_t i;
   driver->clkCorrectionIdx = 0;                // reset clock correction
   driver->clkCorrRatioUQ = (1<<15);            // this is 1.0 in UQ1.15 
-  for ( i = 0; i < CLK_CORRECTION_PAIRS; i++ )
+  for ( uint8_t i = 0; i < CLK_CORRECTION_PAIRS; i++ )
   {
     driver->hostTicks[ i ] = 0;
     driver->tmf8829Ticks[ i ] = 0;             // initialise the tmf8829Ticks to a value that has the LSB cleared -> can identify that these are no real ticks
@@ -715,16 +712,13 @@ static uint16_t tmf8829CalcClkRatioUQ16 ( uint32_t hDiff, uint32_t tDiff, uint16
 // Add a host tick and a tmf8829 tick to the clock correction list and update ratioUQ
 static void tmf8829ClockCorrectionAddPair ( tmf8829Driver * driver, uint32_t hostTick, uint32_t tmf8829Tick )
 {
-  uint8_t idx;
-  uint8_t idx2;
   uint32_t hDiff;
-  uint32_t tDiff;
   driver->clkCorrectionIdx = CLK_CORRECTION_IDX_MODULO( driver->clkCorrectionIdx + 1 );     // increment and take care of wrap-over
   driver->hostTicks[ driver->clkCorrectionIdx ] = hostTick;
   driver->tmf8829Ticks[ driver->clkCorrectionIdx ] = tmf8829Tick;
   /* check if we have enough entries to re-calculate the ratioUQ */
-  idx = driver->clkCorrectionIdx;                                         // last inserted
-  idx2 = CLK_CORRECTION_IDX_MODULO( idx + CLK_CORRECTION_PAIRS - 1 );     // oldest available
+  uint8_t idx = driver->clkCorrectionIdx;                                         // last inserted
+  uint8_t idx2 = CLK_CORRECTION_IDX_MODULO(idx + CLK_CORRECTION_PAIRS - 1);     // oldest available
 
   if ((driver->hostTicks[ idx ]) < driver->hostTicks[ idx2 ]) //prevent rollover
   {
@@ -735,7 +729,7 @@ static void tmf8829ClockCorrectionAddPair ( tmf8829Driver * driver, uint32_t hos
     hDiff = driver->hostTicks[ idx ] - driver->hostTicks[ idx2 ];
   }
 
-  tDiff = driver->tmf8829Ticks[ idx ] - driver->tmf8829Ticks[ idx2 ];
+  uint32_t tDiff = driver->tmf8829Ticks[idx] - driver->tmf8829Ticks[idx2];
   driver->clkCorrRatioUQ = tmf8829CalcClkRatioUQ16( hDiff, tDiff, driver->clkCorrRatioUQ );
   if ( driver->logLevel & TMF8829_LOG_LEVEL_CLK_CORRECTION )
   {
@@ -773,20 +767,20 @@ int8_t tmf8829ReadDeviceInfo ( tmf8829Driver * driver )
 
 int8_t tmf8829Command ( tmf8829Driver * driver, uint8_t cmd )
 {
-  int8_t stat;
   driver->dataBuffer[0] = cmd;
   txReg( driver, driver->i2cSlaveAddress, TMF8829_COM_REG_CMD_STAT, 1, driver->dataBuffer );
-  stat = tmf8829CheckRegister( driver, TMF8829_COM_REG_CMD_STAT, TMF8829_CMD_STAT__cmd_stat__STAT_OK, 1, APP_CMD_LOAD_CONFIG_TIMEOUT_MS );  // check that load command is completed
+  int8_t stat = tmf8829CheckRegister(driver, TMF8829_COM_REG_CMD_STAT, TMF8829_CMD_STAT__cmd_stat__STAT_OK, 1,
+                                     APP_CMD_LOAD_CONFIG_TIMEOUT_MS);  // check that load command is completed
 
   return stat;
 }
 
 int8_t tmf8829CmdLoadConfigPage ( tmf8829Driver * driver )
 {
-  int8_t stat;
   driver->dataBuffer[0] = TMF8829_CMD_STAT__cmd_stat__CMD_LOAD_CONFIG_PAGE;
   txReg( driver, driver->i2cSlaveAddress, TMF8829_COM_REG_CMD_STAT, 1, driver->dataBuffer ); // instruct device to load page
-  stat = tmf8829CheckRegister( driver, TMF8829_COM_REG_CMD_STAT, TMF8829_CMD_STAT__cmd_stat__STAT_OK, 1, APP_CMD_LOAD_CONFIG_TIMEOUT_MS );  // check that load command is completed
+  int8_t stat = tmf8829CheckRegister(driver, TMF8829_COM_REG_CMD_STAT, TMF8829_CMD_STAT__cmd_stat__STAT_OK, 1,
+                                     APP_CMD_LOAD_CONFIG_TIMEOUT_MS);  // check that load command is completed
   if ( stat == APP_SUCCESS_OK )
   {
     stat = tmf8829CheckRegister( driver, TMF8829_CID_RID, TMF8829_CMD_STAT__cmd_stat__CMD_LOAD_CONFIG_PAGE, 1, APP_CMD_LOAD_CONFIG_TIMEOUT_MS );     // check that correct config page is loaded
@@ -796,16 +790,16 @@ int8_t tmf8829CmdLoadConfigPage ( tmf8829Driver * driver )
 
 int8_t tmf8829CmdWritePage ( tmf8829Driver * driver )
 {
-  int8_t stat;
   driver->dataBuffer[0] = TMF8829_CMD_STAT__cmd_stat__CMD_WRITE_PAGE;
   txReg( driver, driver->i2cSlaveAddress, TMF8829_COM_REG_CMD_STAT, 1, driver->dataBuffer ); // instruct device to write page
-  stat = tmf8829CheckRegister( driver, TMF8829_COM_REG_CMD_STAT, TMF8829_CMD_STAT__cmd_stat__STAT_OK, 1, APP_CMD_WRITE_CONFIG_TIMEOUT_MS ); // check that write command is completed
+  int8_t stat = tmf8829CheckRegister(driver, TMF8829_COM_REG_CMD_STAT, TMF8829_CMD_STAT__cmd_stat__STAT_OK, 1,
+                                     APP_CMD_WRITE_CONFIG_TIMEOUT_MS); // check that write command is completed
   return stat;
 }
 
 int8_t tmf8829GetConfiguration (tmf8829Driver * driver)
 {
-  int8_t stat = tmf8829CmdLoadConfigPage( driver ); // first load the page, then only overwrite the registers you want to change 
+  const int8_t stat = tmf8829CmdLoadConfigPage( driver ); // first load the page, then only overwrite the registers you want to change
 
   if ( stat == APP_SUCCESS_OK )
   {
@@ -906,12 +900,12 @@ int8_t tmf8829SetConfigurationInSegments ( tmf8829Driver * driver, uint16_t segm
 
 int8_t tmf8829StartMeasurement ( tmf8829Driver * driver ) 
 {
-  int8_t accepted;
   int16_t period = (driver->config[0]) + (driver->config[TMF8829_CFG_PERIOD_MS_MSB-TMF8829_CFG_PERIOD_MS_LSB]*256);
   tmf8829ResetClockCorrection( driver ); // clock correction only works during measurements
   driver->dataBuffer[0] = TMF8829_CMD_STAT__cmd_stat__CMD_MEASURE;
   txReg( driver, driver->i2cSlaveAddress, TMF8829_COM_REG_CMD_STAT, 1, driver->dataBuffer );
-  accepted = tmf8829CheckRegister( driver, TMF8829_COM_REG_CMD_STAT, TMF8829_CMD_STAT__cmd_stat__STAT_ACCEPTED, 1, APP_CMD_MEASURE_TIMEOUT_MS );
+  int8_t accepted = tmf8829CheckRegister(driver, TMF8829_COM_REG_CMD_STAT, TMF8829_CMD_STAT__cmd_stat__STAT_ACCEPTED,
+                                         1, APP_CMD_MEASURE_TIMEOUT_MS);
 
   if ((accepted == APP_SUCCESS_OK) && period)
   {
@@ -932,10 +926,9 @@ int8_t tmf8829StopMeasurement ( tmf8829Driver * driver )
 
 uint8_t tmf8829GetAndClrInterrupts ( tmf8829Driver * driver, uint8_t mask )
 {
-  uint8_t setInterrupts;
   driver->dataBuffer[0] = 0;
   rxReg( driver, driver->i2cSlaveAddress, INT_STATUS, 1, driver->dataBuffer ); // read interrupt status register
-  setInterrupts = driver->dataBuffer[0] & mask;
+  uint8_t setInterrupts = driver->dataBuffer[0] & mask;
   if ( setInterrupts )
   {
     driver->dataBuffer[0] = setInterrupts;                                   // clear only those that were set when we read the register, and only those we want to know
@@ -984,7 +977,6 @@ int8_t tmf8829ReadResults ( tmf8829Driver * driver )
 
   if ( (driver->dataBuffer[TMF8829_PRE_HEADER_SIZE] & TMF8829_FID_MASK ) == TMF8829_FID_RESULTS )
   {
-    uint16_t eofMarker;
     uint16_t payload = tmf8829GetUint16( driver->dataBuffer + 7 ); // payload in dataBuffer in Frameheader Byte 2 + 3
     uint16_t sizeToRead = payload - ( TMF8829_FRAME_HEADER_SIZE - TMF8829_FRAME_HEADER_OFFSET );
     uint16_t rxSize = 0;
@@ -1018,7 +1010,7 @@ int8_t tmf8829ReadResults ( tmf8829Driver * driver )
 
     } while ( ( sizeToRead > 0 ) && ( rxStatus == APP_SUCCESS_OK ) );
 
-    eofMarker = tmf8829GetUint16( driver->dataBuffer +  rxSize - TMF8829_FRAME_EOF_SIZE );
+    uint16_t eofMarker = tmf8829GetUint16(driver->dataBuffer + rxSize - TMF8829_FRAME_EOF_SIZE);
     handleReceivedResultDataEnd( driver );
 
     if ( eofMarker == TMF8829_FRAME_EOF )
@@ -1039,7 +1031,6 @@ int8_t tmf8829ReadHistogram ( tmf8829Driver * driver )
 
   if ( (driver->dataBuffer[TMF8829_PRE_HEADER_SIZE] & TMF8829_FID_MASK ) == TMF8829_FID_HISTOGRAMS )
   {
-    uint16_t eofMarker;
     uint16_t payload = tmf8829GetUint16( driver->dataBuffer + 7 ); // payload in dataBuffer in Frameheader Byte 2 + 3
     uint16_t sizeToRead = payload - ( TMF8829_FRAME_HEADER_SIZE - TMF8829_FRAME_HEADER_OFFSET );
     uint16_t rxSize = 0;
@@ -1063,7 +1054,7 @@ int8_t tmf8829ReadHistogram ( tmf8829Driver * driver )
 
     } while ( ( sizeToRead > 0 ) && ( rxStatus == APP_SUCCESS_OK ) );
 
-    eofMarker = tmf8829GetUint16( driver->dataBuffer +  rxSize - TMF8829_FRAME_EOF_SIZE );
+    uint16_t eofMarker = tmf8829GetUint16(driver->dataBuffer + rxSize - TMF8829_FRAME_EOF_SIZE);
     handleReceivedHistogramDataEnd( driver );
 
     if ( eofMarker == TMF8829_FRAME_EOF )
@@ -1104,8 +1095,6 @@ void tmf8829CorrectDistanceDataSegment ( tmf8829Driver * driver, uint16_t size, 
       }
      }
   }
-
-  return;
 }
 
 uint16_t tmf8829CorrectDistance( tmf8829Driver * driver, uint16_t distance)
