@@ -319,8 +319,8 @@ int8_t singleShot48x32HexDump() {
         return APP_ERROR_NO_RESULT;
     }
 
-    // 5. Print decoded info and PGM image
-    PRINT_CONST_STR(F( "[4/4] Printing frame metadata and PGM image:" ));
+    // 5. Print decoded info
+    PRINT_CONST_STR(F( "[4/4] Printing frame metadata:" ));
     PRINT_LN();
 
     for (int i = 0; i < 2; i++) {
@@ -369,9 +369,6 @@ int8_t singleShot48x32HexDump() {
         PRINT_LN();
     }
 
-    PRINT_CONST_STR(F( "--- Decoded 48x32 Frame PGM Format ---" ));
-    PRINT_LN();
-    printDistanceMapPGM(distances, 48, 32);
     PRINT_CONST_STR(F( "==================================================" ));
     PRINT_LN();
 

@@ -78,7 +78,7 @@ The application provides an interactive command-line interface via the monitor c
 | `s` | **Stop** | Stops continuous measurement |
 | `c` / `p` | **Next Configuration** | Cycles through optical configurations (8x8, 16x16, 32x32, 48x32, high accuracy, etc.) |
 | `u` | **Get Configuration** | Reads and displays current configuration registers |
-| `1` / `o` / `O` | **Single-Shot 48x32 & PGM** | Captures a 48x32 frame (dual sub-frames), outputs ASCII PGM (P2) image, and transmits PGM via UDP |
+| `1` / `o` / `O` | **Single-Shot 48x32 Capture** | Captures a 48x32 frame (dual sub-frames) and transmits PGM image via UDP |
 | `a` | **Dump Registers** | Dumps 256 sensor registers over SPI (when stopped) |
 | `w` | **Wakeup** | Wakes up sensor from power-down state |
 | `P` | **Power Down** | Puts sensor into power-down (standby) state |
@@ -103,9 +103,9 @@ The application provides an interactive command-line interface via the monitor c
 1. Press `e` (or wait 5 seconds after startup/reset for auto-enable) to ensure the device is initialized.
 2. Once enabled, an automatic handler captures and transmits a 48x32 snapshot PGM image via UDP every 7 seconds.
 3. You can also trigger a capture manually at any time by pressing `1` (or `o` / `O`).
-4. The firmware configures 48x32 mode, captures both Sub-frame 0 (even rows) and Sub-frame 1 (odd rows), and prints the complete 1536-pixel depth map in Netpbm ASCII PGM (`P2`) format (48 pixels per row across 32 rows).
-5. The complete ASCII PGM image is also automatically transmitted as a UDP packet to the configured target host and port.
-6. The PGM text can be copied or redirected into a `.pgm` file and viewed in standard image viewers (GIMP, ImageMagick, VS Code PGM viewer).
+4. The firmware configures 48x32 mode, captures both Sub-frame 0 (even rows) and Sub-frame 1 (odd rows), and decodes the complete 1536-pixel depth map.
+5. The complete ASCII PGM image is automatically transmitted as UDP packets to the configured target host and port.
+6. Received UDP packets can be captured or saved into a `.pgm` file and viewed in standard image viewers (GIMP, ImageMagick, VS Code PGM viewer).
 
 ---
 
