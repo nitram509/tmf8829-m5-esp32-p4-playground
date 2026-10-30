@@ -14,12 +14,17 @@
 #include "app.h"
 #include "net.h"
 
+static const char *TAG = "tmf8829";
+
 static SemaphoreHandle_t s_distance_map_mutex = nullptr;
 static uint16_t s_latest_distances[1536] = {0};
 static bool s_subframes_seen[2] = {false, false};
 static bool s_has_valid_frame = false;
 static int64_t s_latest_frame_time_us = 0;
 static uint32_t s_frame_counter = 0;
+static int8_t s_latest_temperatures[3] = {0, 0, 0};
+static bool s_has_temperatures = false;
+static int64_t s_last_temperature_log_time_us = 0;
 
 void init_distance_map_storage(void) {
     if (s_distance_map_mutex == nullptr) {
@@ -31,10 +36,29 @@ void init_distance_map_storage(void) {
     s_has_valid_frame = false;
     s_latest_frame_time_us = 0;
     s_frame_counter = 0;
+    s_latest_temperatures[0] = 0;
+    s_latest_temperatures[1] = 0;
+    s_latest_temperatures[2] = 0;
+    s_has_temperatures = false;
+    s_last_temperature_log_time_us = 0;
 }
 
 bool is_distance_map_available(void) {
     return s_has_valid_frame;
+}
+
+bool get_latest_temperatures(int8_t *out_temp0, int8_t *out_temp1, int8_t *out_temp2) {
+    if (s_distance_map_mutex == nullptr || !s_has_temperatures) {
+        return false;
+    }
+    if (xSemaphoreTake(s_distance_map_mutex, pdMS_TO_TICKS(50)) == pdTRUE) {
+        if (out_temp0 != nullptr) *out_temp0 = s_latest_temperatures[0];
+        if (out_temp1 != nullptr) *out_temp1 = s_latest_temperatures[1];
+        if (out_temp2 != nullptr) *out_temp2 = s_latest_temperatures[2];
+        xSemaphoreGive(s_distance_map_mutex);
+        return true;
+    }
+    return false;
 }
 
 bool get_latest_distance_map(uint16_t *out_distances, uint16_t width, uint16_t height, int64_t *out_timestamp_us, uint32_t *out_frame_counter) {
@@ -113,6 +137,30 @@ int8_t process_sensor_measurement_stream(void) {
         uint32_t hTick = getSysTick();
         uint32_t tTick = tmf8829GetUint32(frameBuffer + 1);
         tmf8829ClockCorrectionAddPair(&tmf8829, hTick, tTick);
+
+        // Extract temperatures reported in frame header bytes 8, 9, 10
+        int8_t temp0 = static_cast<int8_t>(frameBuffer[TMF8829_PRE_HEADER_SIZE + 8]);
+        int8_t temp1 = static_cast<int8_t>(frameBuffer[TMF8829_PRE_HEADER_SIZE + 9]);
+        int8_t temp2 = static_cast<int8_t>(frameBuffer[TMF8829_PRE_HEADER_SIZE + 10]);
+
+        if (s_distance_map_mutex != nullptr && xSemaphoreTake(s_distance_map_mutex, pdMS_TO_TICKS(10)) == pdTRUE) {
+            s_latest_temperatures[0] = temp0;
+            s_latest_temperatures[1] = temp1;
+            s_latest_temperatures[2] = temp2;
+            s_has_temperatures = true;
+            xSemaphoreGive(s_distance_map_mutex);
+        } else {
+            s_latest_temperatures[0] = temp0;
+            s_latest_temperatures[1] = temp1;
+            s_latest_temperatures[2] = temp2;
+            s_has_temperatures = true;
+        }
+
+        int64_t now_us = esp_timer_get_time();
+        if (now_us - s_last_temperature_log_time_us >= 5000000) {
+            s_last_temperature_log_time_us = now_us;
+            ESP_LOGI(TAG, "TMF8829 Temperatures: T0=%d °C, T1=%d °C, T2=%d °C", temp0, temp1, temp2);
+        }
 
         if (fid == TMF8829_FID_RESULTS) {
             uint8_t subResult = 0;

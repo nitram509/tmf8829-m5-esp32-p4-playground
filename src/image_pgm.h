@@ -31,6 +31,14 @@ bool get_latest_distance_map(uint16_t *out_distances, uint16_t width, uint16_t h
  */
 bool is_distance_map_available(void);
 
+/** @brief Retrieves the latest reported temperatures (in °C) from the three on-chip sensors.
+ *  @param out_temp0 Pointer to output temperature sensor 0 (°C).
+ *  @param out_temp1 Pointer to output temperature sensor 1 (°C).
+ *  @param out_temp2 Pointer to output temperature sensor 2 (°C).
+ *  @return true if valid temperature readings are available, false otherwise.
+ */
+bool get_latest_temperatures(int8_t *out_temp0, int8_t *out_temp1, int8_t *out_temp2);
+
 void printFramePGM(const uint8_t *frame, size_t frameLen);
 
 void printDistanceMapPGM(const uint16_t *distances, uint16_t width, uint16_t height);
