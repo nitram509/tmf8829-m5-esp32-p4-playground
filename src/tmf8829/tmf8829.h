@@ -258,6 +258,13 @@ void tmf8829SetLogLevel( tmf8829Driver * driver, uint8_t level );
  */ 
 void tmf8829ClkCorrection( tmf8829Driver * driver, uint8_t enable );
 
+/** @brief Add a host tick and a tmf8829 tick to the clock correction list and update ratioUQ
+ * @param driver ... pointer to an instance of the tmf8829 driver data structure
+ * @param hostTick ... host system tick
+ * @param tmf8829Tick ... tmf8829 sensor tick
+ */
+void tmf8829ClockCorrectionAddPair( tmf8829Driver * driver, uint32_t hostTick, uint32_t tmf8829Tick );
+
 /** @brief  Function to reset the HW and SW on the device
  * driver ... pointer to an instance of the tmf8829 driver data structure
  */ 

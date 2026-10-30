@@ -136,12 +136,13 @@ protoc --proto_path=../../proto --nanopb_out="$(pwd)" message.proto
 ## Project Structure
 
 - `src/main.cpp`: Application entry point (`app_main`), orchestrating the program flow and main task loop.
-- `src/app.cpp` & `src/app.h`: High-level application logic, state machine, and interactive command parser.
-- `src/image_pgm.cpp` & `src/image_pgm.h`: ASCII PGM (P2) image exporter, distance map rendering, and single-shot frame capture routines.
+- `src/app.cpp` & `src/app.h`: High-level application logic, state machine, asynchronous continuous measurement orchestration, and interactive command parser.
+- `src/image_pgm.cpp` & `src/image_pgm.h`: Background measurement streaming decoder, thread-safe depth map buffer management, ASCII PGM (P2) exporter, and single-shot capture routines.
+- `src/image_png.cpp` & `src/image_png.h`: 16-bit grayscale PNG encoder (using standard non-compressed DEFLATE / zlib container with no external dependencies).
 - `src/help.cpp` & `src/help.h`: Helper functions for human-readable mode names, pre-configuration labels, and optical profile descriptions.
 - `src/net.cpp` & `src/net.h`: Ethernet driver initialization (ESP32-P4 EMAC + IP101 PHY), raw/PGM image UDP forwarder, and network event handling.
 - `src/net_handler.cpp` & `src/net_handler.h`: UDP server listener and Protobuf request handler (`Request` / `GetDeviceInfo` -> `DeviceInfo` response).
-- `src/web_server.cpp` & `src/web_server.h`: Embedded HTTP web server (`esp_http_server`) serving `/` and `/index.html` from compiled static assets.
+- `src/web_server.cpp` & `src/web_server.h`: Embedded HTTP web server (`esp_http_server`) serving `/`, `/index.html`, and `/api/image.png` (instant < 2ms snapshot of latest 16-bit PNG depth map from background stream).
 - `src/web/`: Web assets including `index.html`, `index_html.c`, and `index_html.h`.
 - `src/protobuf/`: Protocol Buffers definitions and auto-generated Nanopb bindings (`message.pb.c`, `message.pb.h`).
 - `src/vendor/nanopb-0.4.9.2/`: Nanopb protocol buffers library (`pb.h`, `pb_common.c`, `pb_encode.c`, `pb_decode.c`).

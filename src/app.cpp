@@ -237,6 +237,10 @@ void enable(uint32_t imageStartAddress, const unsigned char *image, int32_t imag
                 printDeviceInfo();
                 printConfigurationDetails();
                 tmf8829CmdWritePage(&tmf8829);
+
+                // Automatically configure 48x32 Default mode and start background streaming
+                preconfigure(TMF8829_CMD_STAT__cmd_stat__CMD_LOAD_CFG_48X32);
+                measure();
             } else {
                 stateTmf8829 = TMF8829_STATE_ERROR;
             }
@@ -716,6 +720,7 @@ void initial_setup(uint8_t logLevelIdx, uint32_t baudrate, uint32_t spiClockSpee
     inputOpen(baudrate);
     spiOpen(&tmf8829, spiClockSpeedInHz);
     resetAppState();
+    init_distance_map_storage();
     tmf8829Initialise(&tmf8829);
     tmf8829SetLogLevel(&tmf8829, logLevels[logLevelIdx]);
     setInterruptHandler(interruptHandler);
@@ -744,26 +749,10 @@ int8_t main_loop() {
     }
 
     int8_t res = APP_SUCCESS_OK;
-    uint8_t intStatus = 0;
     int8_t exit = serialInput(); // handle any keystrokes from UART
 
-#if ( defined( USE_INTERRUPT_TO_TRIGGER_READ ) && ( USE_INTERRUPT_TO_TRIGGER_READ != 0 ) )
-    if (irqTriggered) {
-        disableInterrupts();
-        irqTriggered = 0;
-        enableInterrupts();
-#else
     if (stateTmf8829 == TMF8829_STATE_MEASURE) {
-#endif
-        intStatus = tmf8829GetAndClrInterrupts(&tmf8829, TMF8829_APP_INT_RESULTS | TMF8829_APP_INT_HISTOGRAMS);
-
-        if (intStatus & TMF8829_APP_INT_RESULTS) // check if a result is available
-        {
-            res = tmf8829ReadResults(&tmf8829);
-        }
-        if (intStatus & TMF8829_APP_INT_HISTOGRAMS) {
-            res = tmf8829ReadHistogram(&tmf8829);
-        }
+        res = process_sensor_measurement_stream();
     }
 
     if (res != APP_SUCCESS_OK)
@@ -774,11 +763,7 @@ int8_t main_loop() {
         stateTmf8829 = TMF8829_STATE_STOPPED;
         PRINT_CONST_STR(F( "#Err" ));
         PRINT_CHAR(SEPARATOR);
-        PRINT_CONST_STR(F( "inter" ));
-        PRINT_CHAR(SEPARATOR);
-        PRINT_INT(intStatus);
-        PRINT_CHAR(SEPARATOR);
-        PRINT_CONST_STR(F( "but no data" ));
+        PRINT_CONST_STR(F( "stream error" ));
         PRINT_LN();
     }
     return !exit; // 1 == loop again, 0 == exit

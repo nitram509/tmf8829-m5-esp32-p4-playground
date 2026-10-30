@@ -1,6 +1,7 @@
 idf_component_register(SRCS "main.cpp"
                             "app.cpp"
                             "image_pgm.cpp"
+                            "image_png.cpp"
                             "help.cpp"
                             "net.cpp"
                             "net_handler.cpp"

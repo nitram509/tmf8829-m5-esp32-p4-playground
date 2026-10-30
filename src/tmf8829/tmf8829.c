@@ -710,7 +710,7 @@ static uint16_t tmf8829CalcClkRatioUQ16 ( uint32_t hDiff, uint32_t tDiff, uint16
 }
 
 // Add a host tick and a tmf8829 tick to the clock correction list and update ratioUQ
-static void tmf8829ClockCorrectionAddPair ( tmf8829Driver * driver, uint32_t hostTick, uint32_t tmf8829Tick )
+void tmf8829ClockCorrectionAddPair ( tmf8829Driver * driver, uint32_t hostTick, uint32_t tmf8829Tick )
 {
   uint32_t hDiff;
   driver->clkCorrectionIdx = CLK_CORRECTION_IDX_MODULO( driver->clkCorrectionIdx + 1 );     // increment and take care of wrap-over

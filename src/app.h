@@ -35,6 +35,18 @@ void final_clean_shutdown(void);
 
 void preconfigure(int8_t cfgNr);
 
+void measure(void);
+
+void stop(void);
+
+void powerDown(void);
+
+void reset(void);
+
+void wakeup(void);
+
+void enable(uint32_t imageStartAddress, const unsigned char *image, int32_t imageSizeInBytes);
+
 #ifdef __cplusplus
 }
 #endif
