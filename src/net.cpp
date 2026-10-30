@@ -173,7 +173,6 @@ static void eth_event_handler(void *arg, esp_event_base_t event_base, int32_t ev
                 ESP_LOGI(TAG, "Netmask: " IPSTR ", Gateway: " IPSTR, IP2STR(&event->ip_info.netmask),
                          IP2STR(&event->ip_info.gw));
                 s_connected = true;
-                start_device_info_beacon();
                 break;
             }
             case IP_EVENT_ETH_LOST_IP:

@@ -101,11 +101,10 @@ The application provides an interactive command-line interface via the monitor c
 
 #### 2. Single-Shot 48x32 Capture & PGM Image Export
 1. Press `e` (or wait 5 seconds after startup/reset for auto-enable) to ensure the device is initialized.
-2. Once enabled, an automatic handler captures and transmits a 48x32 snapshot PGM image via UDP every 7 seconds.
-3. You can also trigger a capture manually at any time by pressing `1` (or `o` / `O`).
-4. The firmware configures 48x32 mode, captures both Sub-frame 0 (even rows) and Sub-frame 1 (odd rows), and decodes the complete 1536-pixel depth map.
-5. The complete ASCII PGM image is automatically transmitted as UDP packets to the configured target host and port.
-6. Received UDP packets can be captured or saved into a `.pgm` file and viewed in standard image viewers (GIMP, ImageMagick, VS Code PGM viewer).
+2. Trigger a single-shot capture at any time by pressing `1` (or `o` / `O`).
+3. The firmware configures 48x32 mode, captures both Sub-frame 0 (even rows) and Sub-frame 1 (odd rows), and decodes the complete 1536-pixel depth map.
+4. The complete ASCII PGM image is transmitted as UDP packets to the configured target host and port.
+5. Received UDP packets can be captured or saved into a `.pgm` file and viewed in standard image viewers (GIMP, ImageMagick, VS Code PGM viewer).
 
 ---
 
@@ -140,8 +139,10 @@ protoc --proto_path=../../proto --nanopb_out="$(pwd)" message.proto
 - `src/app.cpp` & `src/app.h`: High-level application logic, state machine, and interactive command parser.
 - `src/image_pgm.cpp` & `src/image_pgm.h`: ASCII PGM (P2) image exporter, distance map rendering, and single-shot frame capture routines.
 - `src/help.cpp` & `src/help.h`: Helper functions for human-readable mode names, pre-configuration labels, and optical profile descriptions.
-- `src/net.cpp` & `src/net.h`: Ethernet driver initialization (ESP32-P4 EMAC + IP101 PHY), raw/PGM image UDP forwarder, and periodic device info / IP address UDP beacon (3x at 5s interval, then every 60s).
+- `src/net.cpp` & `src/net.h`: Ethernet driver initialization (ESP32-P4 EMAC + IP101 PHY), raw/PGM image UDP forwarder, and network event handling.
 - `src/net_handler.cpp` & `src/net_handler.h`: UDP server listener and Protobuf request handler (`Request` / `GetDeviceInfo` -> `DeviceInfo` response).
+- `src/web_server.cpp` & `src/web_server.h`: Embedded HTTP web server (`esp_http_server`) serving `/` and `/index.html` from compiled static assets.
+- `src/web/`: Web assets including `index.html`, `index_html.c`, and `index_html.h`.
 - `src/protobuf/`: Protocol Buffers definitions and auto-generated Nanopb bindings (`message.pb.c`, `message.pb.h`).
 - `src/vendor/nanopb-0.4.9.2/`: Nanopb protocol buffers library (`pb.h`, `pb_common.c`, `pb_encode.c`, `pb_decode.c`).
 - `src/tmf8829/`: Dedicated subsystem for TMF8829 sensor communication, control, and data acquisition:

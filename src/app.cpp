@@ -9,6 +9,7 @@
 #include "image_pgm.h"
 #include "net.h"
 #include "net_handler.h"
+#include "web_server.h"
 
 #include "tmf8829/tmf8829_shim.h"
 #include "tmf8829/tmf8829.h"
@@ -78,8 +79,6 @@ uint8_t binaryBufFill; /**< fill level of the binary command payload buffer */
 uint8_t binaryBuf[TMF8829_BINARY_BUF_SIZE]; /**< binary command payload buffer */
 
 static TickType_t s_start_tick = 0;
-static TickType_t s_last_snapshot_tick = 0;
-static bool s_snapshot_timer_active = false;
 
 // ---------------------------------------------- function declaration ------------------------------
 
@@ -632,8 +631,6 @@ int8_t handleCharInput(char key) {
     } else if (key == '1' || key == 'o' || key == 'O') // single shot 48x32 frame hexdump
     {
         singleShot48x32HexDump();
-        s_last_snapshot_tick = xTaskGetTickCount();
-        s_snapshot_timer_active = true;
     } else if (key == '#') // reset chip to test the reset function itself
     {
         reset();
@@ -726,11 +723,10 @@ void initial_setup(uint8_t logLevelIdx, uint32_t baudrate, uint32_t spiClockSpee
     delayInMicroseconds(CAP_DISCHARGE_TIME_MS * 1000); // wait for a proper discharge of the cap
     init_network();
     start_net_handler();
+    start_webserver();
     printHelp();
 
     s_start_tick = xTaskGetTickCount();
-    s_last_snapshot_tick = 0;
-    s_snapshot_timer_active = false;
 }
 
 int8_t main_loop() {
@@ -743,28 +739,8 @@ int8_t main_loop() {
                 PRINT_LN();
                 enable(tmf8829_image_start, tmf8829_firmware, tmf8829_image_length);
                 printState();
-                if (stateTmf8829 == TMF8829_STATE_STOPPED) {
-                    s_snapshot_timer_active = false;
-                }
             }
         }
-    }
-
-    if (stateTmf8829 == TMF8829_STATE_STOPPED) {
-        if (!s_snapshot_timer_active) {
-            PRINT_CONST_STR(F( "Auto-snapshot: capturing and sending initial 48x32 frame..." ));
-            PRINT_LN();
-            singleShot48x32HexDump();
-            s_last_snapshot_tick = xTaskGetTickCount();
-            s_snapshot_timer_active = true;
-        } else if ((xTaskGetTickCount() - s_last_snapshot_tick) >= pdMS_TO_TICKS(7000)) {
-            PRINT_CONST_STR(F( "Auto-snapshot: capturing and sending 48x32 frame (every 7s)..." ));
-            PRINT_LN();
-            singleShot48x32HexDump();
-            s_last_snapshot_tick = xTaskGetTickCount();
-        }
-    } else {
-        s_snapshot_timer_active = false;
     }
 
     int8_t res = APP_SUCCESS_OK;
@@ -809,6 +785,7 @@ int8_t main_loop() {
 }
 
 void final_clean_shutdown(void) {
+    stop_webserver();
     stop_device_info_beacon();
     stop_net_handler();
     tmf8829Disable(&tmf8829);
