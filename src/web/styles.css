@@ -58,12 +58,87 @@ label {
     font-size: 100%;
 }
 
-.pure-form input[type] {
+.pure-form input[type="text"],
+.pure-form input[type="password"],
+.pure-form input[type="email"],
+.pure-form input[type="url"],
+.pure-form input[type="date"],
+.pure-form input[type="month"],
+.pure-form input[type="time"],
+.pure-form input[type="datetime"],
+.pure-form input[type="datetime-local"],
+.pure-form input[type="week"],
+.pure-form input[type="number"],
+.pure-form input[type="search"],
+.pure-form input[type="tel"],
+.pure-form input[type="color"] {
     border: 2px solid #ddd;
     box-shadow: none;
     font-size: 100%;
     width: 100%;
     margin-bottom: 1em;
+}
+
+.pure-form input[type="checkbox"],
+.pure-form input[type="radio"] {
+    width: auto;
+    margin-bottom: 0;
+}
+
+/* Switch styling for Pure Form */
+.pure-form .switch {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    cursor: pointer;
+    font-weight: 500;
+    margin-top: 0.5em;
+    user-select: none;
+}
+
+.pure-form .switch input[type="checkbox"] {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+    margin: 0;
+}
+
+.pure-form .switch .slider {
+    position: relative;
+    display: inline-block;
+    width: 40px;
+    height: 22px;
+    background-color: #ccc;
+    border-radius: 22px;
+    transition: background-color 0.2s ease-in-out;
+    margin-right: 10px;
+    vertical-align: middle;
+    flex-shrink: 0;
+}
+
+.pure-form .switch .slider:before {
+    position: absolute;
+    content: "";
+    height: 16px;
+    width: 16px;
+    left: 3px;
+    bottom: 3px;
+    background-color: white;
+    border-radius: 50%;
+    transition: transform 0.2s ease-in-out;
+}
+
+.pure-form .switch input[type="checkbox"]:checked + .slider {
+    background-color: #1f8dd6;
+}
+
+.pure-form .switch input[type="checkbox"]:focus + .slider {
+    box-shadow: 0 0 2px #1f8dd6;
+}
+
+.pure-form .switch input[type="checkbox"]:checked + .slider:before {
+    transform: translateX(18px);
 }
 
 /*

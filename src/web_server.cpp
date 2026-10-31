@@ -119,6 +119,73 @@ static esp_err_t image_png_get_handler(httpd_req_t *req) {
     return httpd_resp_send(req, reinterpret_cast<const char *>(png_buffer), png_size);
 }
 
+static esp_err_t image_snr_png_get_handler(httpd_req_t *req) {
+    int64_t t_req_start = esp_timer_get_time();
+    ESP_LOGI(TAG, "Serving %s (retrieving latest 48x32 SNR frame from background stream)", req->uri);
+
+    if (stateTmf8829 == TMF8829_STATE_DISABLED || stateTmf8829 == TMF8829_STATE_ERROR) {
+        ESP_LOGW(TAG, "Sensor is not initialized or in error state (state=%d)", stateTmf8829);
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Sensor not initialized or in error state");
+        return ESP_FAIL;
+    }
+
+    // If sensor is in STOPPED state, start continuous measurement automatically
+    if (stateTmf8829 == TMF8829_STATE_STOPPED) {
+        preconfigure(TMF8829_CMD_STAT__cmd_stat__CMD_LOAD_CFG_48X32);
+        measure();
+    }
+
+    int64_t t_grab_start = esp_timer_get_time();
+    static uint8_t snr_map[1536];
+    int64_t frame_timestamp_us = 0;
+    uint32_t frame_counter = 0;
+
+    bool success = get_latest_snr_map(snr_map, 48, 32, &frame_timestamp_us, &frame_counter);
+    if (!success) {
+        // Wait up to 300 ms for first background frame if just started
+        int retry = 0;
+        while (!success && retry < 30) {
+            vTaskDelay(pdMS_TO_TICKS(10));
+            success = get_latest_snr_map(snr_map, 48, 32, &frame_timestamp_us, &frame_counter);
+            retry++;
+        }
+    }
+
+    int64_t t_grab_end = esp_timer_get_time();
+    int64_t grab_us = t_grab_end - t_grab_start;
+
+    if (!success) {
+        ESP_LOGE(TAG, "No SNR frame available from background stream");
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Sensor measurement in progress, first frame not ready");
+        return ESP_FAIL;
+    }
+
+    int64_t t_png_start = esp_timer_get_time();
+    static uint8_t png_buffer[4096];
+    size_t png_size = encode_gray8_png(snr_map, 48, 32, png_buffer, sizeof(png_buffer));
+    int64_t t_png_end = esp_timer_get_time();
+    int64_t png_us = t_png_end - t_png_start;
+
+    if (png_size == 0) {
+        ESP_LOGE(TAG, "Failed to encode PNG image");
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to encode PNG image");
+        return ESP_FAIL;
+    }
+
+    int64_t total_us = t_png_end - t_req_start;
+    float frame_age_ms = (frame_timestamp_us > 0) ? (t_png_end - frame_timestamp_us) / 1000.0f : 0.0f;
+
+    ESP_LOGI(TAG, "Performance metrics for %s (Frame #%lu, Frame Age: %.1f ms):",
+             req->uri, (unsigned long)frame_counter, frame_age_ms);
+    ESP_LOGI(TAG, "  * Activating sensor: 0.00 ms (asynchronous continuous background streaming active)");
+    ESP_LOGI(TAG, "  * Grab image from sensor: %.2f ms (instant RAM buffer snapshot)", grab_us / 1000.0f);
+    ESP_LOGI(TAG, "  * PNG compression: %.2f ms", png_us / 1000.0f);
+    ESP_LOGI(TAG, "  * Total HTTP latency: %.2f ms", total_us / 1000.0f);
+
+    httpd_resp_set_type(req, "image/png");
+    return httpd_resp_send(req, reinterpret_cast<const char *>(png_buffer), png_size);
+}
+
 static const httpd_uri_t uri_root = {
     .uri       = "/",
     .method    = HTTP_GET,
@@ -161,6 +228,13 @@ static const httpd_uri_t uri_api_image_depth_png = {
     .user_ctx  = nullptr
 };
 
+static const httpd_uri_t uri_api_image_snr_png = {
+    .uri       = "/api/image/snr.png",
+    .method    = HTTP_GET,
+    .handler   = image_snr_png_get_handler,
+    .user_ctx  = nullptr
+};
+
 esp_err_t start_webserver(void) {
     if (s_server != nullptr) {
         return ESP_OK;
@@ -182,8 +256,9 @@ esp_err_t start_webserver(void) {
     httpd_register_uri_handler(s_server, &uri_grids_responsive_min_css);
     httpd_register_uri_handler(s_server, &uri_styles_css);
     httpd_register_uri_handler(s_server, &uri_api_image_depth_png);
+    httpd_register_uri_handler(s_server, &uri_api_image_snr_png);
 
-    ESP_LOGI(TAG, "HTTP server started and listening for web assets and '/api/image/depth.png'");
+    ESP_LOGI(TAG, "HTTP server started and listening for web assets, '/api/image/depth.png', and '/api/image/snr.png'");
     return ESP_OK;
 }
 

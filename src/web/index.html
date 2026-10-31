@@ -19,21 +19,36 @@
 <div class="content-wrapper">
     <div class="content">
         <div class="pure-g">
-            <div class="l-box pure-u-1 pure-u-md-1-2 pure-u-lg-1-2">
-
-                <h3 class="content-subhead">
-                    <i class="fa fa-rocket"></i>
-                    Get Started Quickly
-                </h3>
+            <div class="l-box pure-u-1 pure-u-md-1-2 pure-u-lg-1-4">
+                <h3 class="content-subhead">Depth image</h3>
                 <p>
-                    Phasellus eget enim eu lectus faucibus vestibulum. Suspendisse sodales pellentesque elementum.
+                    <img id="depth-image" style="width: 420px; height: 320px; border: 1px solid silver;" src="/api/image/depth.png"
+                         alt="Depth image">
                 </p>
+                <form class="pure-form">
+                    <label for="depth-autorefresh" class="pure-checkbox switch">
+                        <input id="depth-autorefresh" type="checkbox">
+                        <span class="slider"></span>
+                        Auto-refresh (200ms)
+                    </label>
+                </form>
+            </div>
+            <div class="l-box pure-u-1 pure-u-md-1-2 pure-u-lg-1-4">
+                <h3 class="content-subhead">SNR image</h3>
+                <p>
+                    <img id="snr-image" style="width: 420px; height: 320px; border: 1px solid silver;" src="/api/image/snr.png"
+                         alt="SNR image">
+                </p>
+                <form class="pure-form">
+                    <label for="snr-autorefresh" class="pure-checkbox switch">
+                        <input id="snr-autorefresh" type="checkbox">
+                        <span class="slider"></span>
+                        Auto-refresh (200ms)
+                    </label>
+                </form>
             </div>
             <div class="l-box pure-u-1 pure-u-md-1-2 pure-u-lg-1-2">
-                <h3 class="content-subhead">
-                    <i class="fa fa-mobile"></i>
-                    Responsive Layouts
-                </h3>
+                <h3 class="content-subhead">Settings</h3>
                 <p>
                     Phasellus eget enim eu lectus faucibus vestibulum. Suspendisse sodales pellentesque elementum.
                 </p>
@@ -52,5 +67,58 @@
         </div>
     </div>
 </div>
+
+<script>
+    function setupAutoRefresh(imgId, toggleId, url, intervalMs) {
+        const img = document.getElementById(imgId);
+        const toggle = document.getElementById(toggleId);
+        if (!img || !toggle) return;
+
+        let timer = null;
+
+        function scheduleNext(delay) {
+            if (timer) clearTimeout(timer);
+            timer = setTimeout(fetchImage, delay);
+        }
+
+        function fetchImage() {
+            if (!toggle.checked) return;
+
+            const preloader = new Image();
+            const queryUrl = url + (url.indexOf('?') === -1 ? '?' : '&') + '_t=' + Date.now();
+
+            preloader.onload = function() {
+                if (toggle.checked) {
+                    img.src = preloader.src;
+                    scheduleNext(intervalMs);
+                }
+            };
+
+            preloader.onerror = function() {
+                if (toggle.checked) {
+                    scheduleNext(Math.max(intervalMs, 1000));
+                }
+            };
+
+            preloader.src = queryUrl;
+        }
+
+        toggle.addEventListener('change', function() {
+            if (this.checked) {
+                fetchImage();
+            } else {
+                if (timer) {
+                    clearTimeout(timer);
+                    timer = null;
+                }
+            }
+        });
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        setupAutoRefresh('depth-image', 'depth-autorefresh', '/api/image/depth.png', 200);
+        setupAutoRefresh('snr-image', 'snr-autorefresh', '/api/image/snr.png', 200);
+    });
+</script>
 </body>
 </html>

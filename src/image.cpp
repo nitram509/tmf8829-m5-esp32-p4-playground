@@ -17,6 +17,7 @@ static const char *TAG = "tmf8829";
 
 static SemaphoreHandle_t s_distance_map_mutex = nullptr;
 static uint16_t s_latest_distances[1536] = {0};
+static uint8_t s_latest_snr[1536] = {0};
 static bool s_subframes_seen[2] = {false, false};
 static bool s_has_valid_frame = false;
 static int64_t s_latest_frame_time_us = 0;
@@ -30,6 +31,7 @@ void init_distance_map_storage() {
         s_distance_map_mutex = xSemaphoreCreateMutex();
     }
     memset(s_latest_distances, 0, sizeof(s_latest_distances));
+    memset(s_latest_snr, 0, sizeof(s_latest_snr));
     s_subframes_seen[0] = false;
     s_subframes_seen[1] = false;
     s_has_valid_frame = false;
@@ -70,6 +72,28 @@ bool get_latest_distance_map(uint16_t *out_distances, uint16_t width, uint16_t h
 
     if (xSemaphoreTake(s_distance_map_mutex, pdMS_TO_TICKS(50)) == pdTRUE) {
         memcpy(out_distances, s_latest_distances, sizeof(uint16_t) * 1536);
+        if (out_timestamp_us != nullptr) {
+            *out_timestamp_us = s_latest_frame_time_us;
+        }
+        if (out_frame_counter != nullptr) {
+            *out_frame_counter = s_frame_counter;
+        }
+        xSemaphoreGive(s_distance_map_mutex);
+        return true;
+    }
+    return false;
+}
+
+bool get_latest_snr_map(uint8_t *out_snr, uint16_t width, uint16_t height, int64_t *out_timestamp_us, uint32_t *out_frame_counter) {
+    if (out_snr == nullptr || width != 48 || height != 32) {
+        return false;
+    }
+    if (s_distance_map_mutex == nullptr || !s_has_valid_frame) {
+        return false;
+    }
+
+    if (xSemaphoreTake(s_distance_map_mutex, pdMS_TO_TICKS(50)) == pdTRUE) {
+        memcpy(out_snr, s_latest_snr, sizeof(uint8_t) * 1536);
         if (out_timestamp_us != nullptr) {
             *out_timestamp_us = s_latest_frame_time_us;
         }
@@ -200,6 +224,10 @@ int8_t process_sensor_measurement_stream() {
                                 }
                                 s_latest_distances[fullIdx] = dist;
                             }
+                            if ((offset + idx + 3) <= totalFrameSize) {
+                                uint8_t snr = frameBuffer[offset + idx + 2];
+                                s_latest_snr[fullIdx] = snr;
+                            }
                         }
                     }
                     s_subframes_seen[subResult] = true;
@@ -225,6 +253,10 @@ int8_t process_sensor_measurement_stream() {
                                 dist = tmf8829CorrectDistance(&tmf8829, dist);
                             }
                             s_latest_distances[m] = dist;
+                        }
+                        if ((offset + idx + 3) <= totalFrameSize) {
+                            uint8_t snr = frameBuffer[offset + idx + 2];
+                            s_latest_snr[m] = snr;
                         }
                     }
                     s_has_valid_frame = true;

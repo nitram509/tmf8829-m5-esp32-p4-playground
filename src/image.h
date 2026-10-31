@@ -25,6 +25,16 @@ int8_t process_sensor_measurement_stream();
  */
 bool get_latest_distance_map(uint16_t *out_distances, uint16_t width, uint16_t height, int64_t *out_timestamp_us = nullptr, uint32_t *out_frame_counter = nullptr);
 
+/** @brief Retrieves a copy of the latest available 48x32 SNR (signal-to-noise ratio) map from RAM in a thread-safe manner.
+ *  @param out_snr Pointer to destination buffer (must hold at least 1536 uint8 values).
+ *  @param width Expected width (48).
+ *  @param height Expected height (32).
+ *  @param out_timestamp_us Optional output pointer to receive timestamp (in microseconds) of the latest frame.
+ *  @param out_frame_counter Optional output pointer to receive sequential frame counter.
+ *  @return true if a valid frame was copied, false if no frame is available yet or mutex timeout.
+ */
+bool get_latest_snr_map(uint8_t *out_snr, uint16_t width, uint16_t height, int64_t *out_timestamp_us = nullptr, uint32_t *out_frame_counter = nullptr);
+
 /** @brief Checks if at least one complete valid distance map has been captured and stored.
  *  @return true if depth data is available, false otherwise.
  */
