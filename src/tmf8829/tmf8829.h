@@ -98,6 +98,9 @@ extern "C" {
 #define TMF8829_CFG_VCSEL_ON                    0x30
 #define TMF8829_CFG_VCDRV_2                     0x33
 #define TMF8829_CFG_VCDRV_3                     0x34
+#define TMF8829_CFG_HA_KILO_ITERATIONS_LSB      0x4A
+#define TMF8829_CFG_HA_KILO_ITERATIONS_MSB      0x4B
+#define TMF8829_CFG_ENABLE_DUAL_MODE            0x4C
 #define TMF8829_CFG_ALG_DISTANCE                0x52
 #define TMF8829_CFG_INT_THRESHOLD_LOW_LSB       0x68
 #define TMF8829_CFG_INT_THRESHOLD_LOW_MSB       0x69

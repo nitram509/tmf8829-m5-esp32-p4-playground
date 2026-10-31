@@ -5,15 +5,12 @@
 #include "freertos/task.h"
 #include "freertos/semphr.h"
 #include "esp_timer.h"
-#include "esp_log.h"
 
 #include "tmf8829/tmf8829.h"
 #include "tmf8829/tmf8829_shim.h"
 
 #include "image.h"
 #include "app.h"
-
-static const char *TAG = "tmf8829";
 
 static SemaphoreHandle_t s_distance_map_mutex = nullptr;
 static uint16_t s_latest_distances[1536] = {0};
@@ -24,9 +21,29 @@ static bool s_subframes_seen[2] = {false, false};
 static bool s_has_valid_frame = false;
 static int64_t s_latest_frame_time_us = 0;
 static uint32_t s_frame_counter = 0;
+static float s_current_fps = 0.0f;
+static int64_t s_last_frame_completion_us = 0;
 static int8_t s_latest_temperatures[3] = {0, 0, 0};
 static bool s_has_temperatures = false;
-static int64_t s_last_temperature_log_time_us = 0;
+
+static void record_frame_completed_locked() {
+    s_has_valid_frame = true;
+    int64_t now_us = esp_timer_get_time();
+    if (s_last_frame_completion_us > 0) {
+        int64_t dt = now_us - s_last_frame_completion_us;
+        if (dt > 1000) {
+            float instant = 1000000.0f / static_cast<float>(dt);
+            if (s_current_fps <= 0.0f) {
+                s_current_fps = instant;
+            } else {
+                s_current_fps = (0.7f * s_current_fps) + (0.3f * instant);
+            }
+        }
+    }
+    s_last_frame_completion_us = now_us;
+    s_latest_frame_time_us = now_us;
+    s_frame_counter++;
+}
 
 void get_sensor_mode_dimensions(uint8_t cfgCmd, uint16_t *out_width, uint16_t *out_height) {
     uint16_t w = 48;
@@ -73,11 +90,12 @@ void init_distance_map_storage() {
     s_has_valid_frame = false;
     s_latest_frame_time_us = 0;
     s_frame_counter = 0;
+    s_current_fps = 0.0f;
+    s_last_frame_completion_us = 0;
     s_latest_temperatures[0] = 0;
     s_latest_temperatures[1] = 0;
     s_latest_temperatures[2] = 0;
     s_has_temperatures = false;
-    s_last_temperature_log_time_us = 0;
 
     uint8_t cfgCmd = (currentMeasConfigNr >= 0 && currentMeasConfigNr < NR_OF_MEAS_CFGS)
                      ? static_cast<uint8_t>(measConfig[currentMeasConfigNr])
@@ -101,6 +119,26 @@ bool get_latest_temperatures(int8_t *out_temp0, int8_t *out_temp1, int8_t *out_t
         if (out_temp0 != nullptr) *out_temp0 = s_latest_temperatures[0];
         if (out_temp1 != nullptr) *out_temp1 = s_latest_temperatures[1];
         if (out_temp2 != nullptr) *out_temp2 = s_latest_temperatures[2];
+        xSemaphoreGive(s_distance_map_mutex);
+        return true;
+    }
+    return false;
+}
+
+bool get_sensor_telemetry(int8_t *out_temp0, int8_t *out_temp1, int8_t *out_temp2,
+                          float *out_fps, uint16_t *out_width, uint16_t *out_height,
+                          uint32_t *out_frame_counter) {
+    if (s_distance_map_mutex == nullptr) {
+        return false;
+    }
+    if (xSemaphoreTake(s_distance_map_mutex, pdMS_TO_TICKS(50)) == pdTRUE) {
+        if (out_temp0 != nullptr) *out_temp0 = s_latest_temperatures[0];
+        if (out_temp1 != nullptr) *out_temp1 = s_latest_temperatures[1];
+        if (out_temp2 != nullptr) *out_temp2 = s_latest_temperatures[2];
+        if (out_fps != nullptr) *out_fps = s_current_fps;
+        if (out_width != nullptr) *out_width = s_current_width;
+        if (out_height != nullptr) *out_height = s_current_height;
+        if (out_frame_counter != nullptr) *out_frame_counter = s_frame_counter;
         xSemaphoreGive(s_distance_map_mutex);
         return true;
     }
@@ -232,12 +270,6 @@ int8_t process_sensor_measurement_stream() {
             s_has_temperatures = true;
         }
 
-        int64_t now_us = esp_timer_get_time();
-        if (now_us - s_last_temperature_log_time_us >= 5000000) {
-            s_last_temperature_log_time_us = now_us;
-            ESP_LOGI(TAG, "TMF8829 Temperatures: T0=%d °C, T1=%d °C, T2=%d °C", temp0, temp1, temp2);
-        }
-
         if (fid == TMF8829_FID_RESULTS) {
             uint8_t subResult = 0;
             if (layout & TMF8829_RESULT_FRAME_SUBIDX_MASK) {
@@ -287,10 +319,12 @@ int8_t process_sensor_measurement_stream() {
                     }
                     s_subframes_seen[subResult] = true;
                     if (s_subframes_seen[0] && s_subframes_seen[1]) {
-                        s_has_valid_frame = true;
+                        s_subframes_seen[0] = false;
+                        s_subframes_seen[1] = false;
+                        record_frame_completed_locked();
+                    } else {
+                        s_latest_frame_time_us = esp_timer_get_time();
                     }
-                    s_latest_frame_time_us = esp_timer_get_time();
-                    s_frame_counter++;
                     xSemaphoreGive(s_distance_map_mutex);
                 }
             } else if (totalPixels == 512) {
@@ -325,10 +359,12 @@ int8_t process_sensor_measurement_stream() {
                     }
                     s_subframes_seen[subResult] = true;
                     if (s_subframes_seen[0] && s_subframes_seen[1]) {
-                        s_has_valid_frame = true;
+                        s_subframes_seen[0] = false;
+                        s_subframes_seen[1] = false;
+                        record_frame_completed_locked();
+                    } else {
+                        s_latest_frame_time_us = esp_timer_get_time();
                     }
-                    s_latest_frame_time_us = esp_timer_get_time();
-                    s_frame_counter++;
                     xSemaphoreGive(s_distance_map_mutex);
                 }
             } else if (totalPixels == 256) {
@@ -354,9 +390,7 @@ int8_t process_sensor_measurement_stream() {
                             s_latest_snr[m] = snr;
                         }
                     }
-                    s_has_valid_frame = true;
-                    s_latest_frame_time_us = esp_timer_get_time();
-                    s_frame_counter++;
+                    record_frame_completed_locked();
                     xSemaphoreGive(s_distance_map_mutex);
                 }
             } else if (totalPixels == 64) {
@@ -382,9 +416,7 @@ int8_t process_sensor_measurement_stream() {
                             s_latest_snr[m] = snr;
                         }
                     }
-                    s_has_valid_frame = true;
-                    s_latest_frame_time_us = esp_timer_get_time();
-                    s_frame_counter++;
+                    record_frame_completed_locked();
                     xSemaphoreGive(s_distance_map_mutex);
                 }
             } else if (totalPixels > 0 && totalPixels <= 1536) {
@@ -413,9 +445,7 @@ int8_t process_sensor_measurement_stream() {
                             s_latest_snr[m] = snr;
                         }
                     }
-                    s_has_valid_frame = true;
-                    s_latest_frame_time_us = esp_timer_get_time();
-                    s_frame_counter++;
+                    record_frame_completed_locked();
                     xSemaphoreGive(s_distance_map_mutex);
                 }
             }

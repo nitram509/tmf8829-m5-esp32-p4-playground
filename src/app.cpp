@@ -188,11 +188,12 @@ void preconfigure(int8_t cfgNr) {
     }
 }
 
-/** @brief Applies a new sensor preconfiguration mode, resets data buffers, and restarts continuous measurement.
- *  @param cfgCmd Preconfiguration command code (e.g., TMF8829_CMD_STAT__cmd_stat__CMD_LOAD_CFG_48X32).
+/** @brief Applies new sensor configuration parameters (mode, iterations, dual mode, period, nr_peaks),
+ *  resets data buffers, and restarts continuous measurement.
+ *  @param params Sensor configuration parameters.
  *  @return true on success, false if sensor is in disabled or error state.
  */
-bool apply_and_reset_sensor_mode(uint8_t cfgCmd) {
+bool apply_and_reset_sensor_config(const SensorConfigParams &params) {
     if (stateTmf8829 == TMF8829_STATE_DISABLED || stateTmf8829 == TMF8829_STATE_ERROR) {
         return false;
     }
@@ -200,16 +201,52 @@ bool apply_and_reset_sensor_mode(uint8_t cfgCmd) {
     // Stop current measurement stream
     stop();
 
-    // Track matching config index
-    for (int i = 0; i < NR_OF_MEAS_CFGS; i++) {
-        if (measConfig[i] == cfgCmd) {
-            currentMeasConfigNr = i;
-            break;
+    uint8_t cfgCmd = params.modeCmd;
+    uint8_t dualMode = params.dualMode & 0x03;
+
+    // Enforce hardware constraint: Dual Mode 2 (11m Long Range) is strictly for 8x8 modes
+    if (dualMode == 2) {
+        if (cfgCmd != TMF8829_CMD_STAT__cmd_stat__CMD_LOAD_CFG_8X8 &&
+            cfgCmd != TMF8829_CMD_STAT__cmd_stat__CMD_LOAD_CFG_8X8_LONG_RANGE &&
+            cfgCmd != TMF8829_CMD_STAT__cmd_stat__CMD_LOAD_CFG_8X8_HIGH_ACCURACY) {
+            cfgCmd = TMF8829_CMD_STAT__cmd_stat__CMD_LOAD_CFG_8X8_LONG_RANGE;
         }
     }
 
-    // Apply preconfiguration
-    preconfigure(cfgCmd);
+    if (cfgCmd != 0) {
+        // Track matching config index
+        for (int i = 0; i < NR_OF_MEAS_CFGS; i++) {
+            if (measConfig[i] == cfgCmd) {
+                currentMeasConfigNr = i;
+                break;
+            }
+        }
+        // Load default preconfiguration profile for the selected mode
+        preconfigure(cfgCmd);
+    }
+
+    // Ensure active configuration is loaded into local buffer
+    tmf8829GetConfiguration(&tmf8829);
+
+    // Apply custom parameters if specified
+    if (params.kiloIterations > 0) {
+        tmf8829.config[TMF8829_CFG_KILO_ITERATIONS_LSB - TMF8829_CFG_PERIOD_MS_LSB] = params.kiloIterations & 0xFF;
+        tmf8829.config[TMF8829_CFG_KILO_ITERATIONS_MSB - TMF8829_CFG_PERIOD_MS_LSB] = (params.kiloIterations >> 8) & 0xFF;
+    }
+
+    tmf8829.config[TMF8829_CFG_PERIOD_MS_LSB - TMF8829_CFG_PERIOD_MS_LSB] = params.periodMs & 0xFF;
+    tmf8829.config[TMF8829_CFG_PERIOD_MS_MSB - TMF8829_CFG_PERIOD_MS_LSB] = (params.periodMs >> 8) & 0xFF;
+
+    tmf8829.config[TMF8829_CFG_ENABLE_DUAL_MODE - TMF8829_CFG_PERIOD_MS_LSB] = params.dualMode & 0x03;
+
+    if (params.nrPeaks >= 1 && params.nrPeaks <= 4) {
+        uint8_t format = tmf8829.config[TMF8829_CFG_RESULT_FORMAT - TMF8829_CFG_PERIOD_MS_LSB];
+        format = (format & ~TMF8829_CFG_RESULT_FORMAT_NR_PEAKS_MASK) | (params.nrPeaks & TMF8829_CFG_RESULT_FORMAT_NR_PEAKS_MASK);
+        tmf8829.config[TMF8829_CFG_RESULT_FORMAT - TMF8829_CFG_PERIOD_MS_LSB] = format;
+    }
+
+    // Write updated configuration page back to sensor
+    tmf8829SetConfiguration(&tmf8829);
 
     // Reset distance & SNR frame buffers
     init_distance_map_storage();
@@ -218,6 +255,21 @@ bool apply_and_reset_sensor_mode(uint8_t cfgCmd) {
     measure();
 
     return true;
+}
+
+/** @brief Applies a new sensor preconfiguration mode, resets data buffers, and restarts continuous measurement.
+ *  @param cfgCmd Preconfiguration command code (e.g., TMF8829_CMD_STAT__cmd_stat__CMD_LOAD_CFG_48X32).
+ *  @return true on success, false if sensor is in disabled or error state.
+ */
+bool apply_and_reset_sensor_mode(uint8_t cfgCmd) {
+    SensorConfigParams params = {
+        .modeCmd = cfgCmd,
+        .kiloIterations = 0, // Keep preconfigured default for mode
+        .periodMs = 0,       // Free-running
+        .dualMode = 0,       // Off
+        .nrPeaks = 1         // 1 peak
+    };
+    return apply_and_reset_sensor_config(params);
 }
 
 /** @brief  Function to get the configuration from the Tmf8829 device.

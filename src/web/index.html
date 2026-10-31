@@ -18,55 +18,176 @@
 
 <div class="content-wrapper">
     <div class="content">
+        <!-- Visual Feeds Row -->
         <div class="pure-g">
-            <div class="l-box pure-u-1 pure-u-md-1-2 pure-u-lg-1-4">
-                <h3 class="content-subhead">Depth image</h3>
+            <div class="l-box pure-u-1 pure-u-md-1-3">
+                <h3 class="content-subhead">Depth Image</h3>
                 <p>
-                    <img id="depth-image" style="width: 100%; height: auto; border: 1px solid silver; image-rendering: pixelated; image-rendering: crisp-edges;" src="/api/image/depth.png"
-                         alt="Depth image">
+                    <canvas id="depth-canvas" style="width: 100%; height: auto; border: 1px solid #cbd5e0; border-radius: 4px; image-rendering: pixelated; image-rendering: crisp-edges; display: block;"></canvas>
                 </p>
-                <form class="pure-form">
-                    <label for="depth-autorefresh" class="pure-checkbox switch">
+                <div id="depth-pixel-info" class="pixel-inspector">Hover over pixels to inspect distance</div>
+                <form class="pure-form" style="margin-top: 0.6em;">
+                    <label for="colormap-select" style="display: block; margin-bottom: 0.2em;">Colormap Palette</label>
+                    <select id="colormap-select" class="pure-input-1" style="max-width: 220px; margin-bottom: 0.6em;">
+                        <option value="turbo" selected>Turbo</option>
+                        <option value="viridis">Viridis</option>
+                        <option value="jet">Jet</option>
+                        <option value="inferno">Inferno</option>
+                        <option value="grayscale">Grayscale</option>
+                    </select>
+                    <label for="depth-autorefresh" class="pure-checkbox switch" style="display: flex;">
                         <input id="depth-autorefresh" type="checkbox">
                         <span class="slider"></span>
                         Auto-refresh (200ms)
                     </label>
                 </form>
             </div>
-            <div class="l-box pure-u-1 pure-u-md-1-2 pure-u-lg-1-4">
-                <h3 class="content-subhead">SNR image</h3>
+
+            <div class="l-box pure-u-1 pure-u-md-1-3">
+                <h3 class="content-subhead">SNR Image</h3>
                 <p>
-                    <img id="snr-image" style="width: 100%; height: auto; border: 1px solid silver; image-rendering: pixelated; image-rendering: crisp-edges;" src="/api/image/snr.png"
-                         alt="SNR image">
+                    <img id="snr-image" style="width: 100%; height: auto; border: 1px solid #cbd5e0; border-radius: 4px; image-rendering: pixelated; image-rendering: crisp-edges; display: block;" src="/api/image/snr.png" alt="SNR image">
                 </p>
-                <form class="pure-form">
-                    <label for="snr-autorefresh" class="pure-checkbox switch">
+                <form class="pure-form" style="margin-top: 2.2em;">
+                    <label for="snr-autorefresh" class="pure-checkbox switch" style="display: flex;">
                         <input id="snr-autorefresh" type="checkbox">
                         <span class="slider"></span>
                         Auto-refresh (200ms)
                     </label>
                 </form>
             </div>
-            <div class="l-box pure-u-1 pure-u-md-1-2 pure-u-lg-1-2">
-                <h3 class="content-subhead">Settings</h3>
-                <form id="config-form" class="pure-form pure-form-stacked" method="POST" action="/api/config">
-                    <fieldset>
-                        <label for="mode-select">Sensor Mode</label>
-                        <select id="mode-select" name="mode" class="pure-input-1" style="max-width: 340px; margin-bottom: 1em;">
-                            <option value="0x40">8x8 Default</option>
-                            <option value="0x41">8x8 Long Range (12m)</option>
-                            <option value="0x42">8x8 High Accuracy (Short Range)</option>
-                            <option value="0x43">16x16 Default</option>
-                            <option value="0x44">16x16 High Accuracy (Short Range)</option>
-                            <option value="0x45">32x32 Default</option>
-                            <option value="0x46">32x32 High Accuracy (Short Range)</option>
-                            <option value="0x47" selected>48x32 Default</option>
-                            <option value="0x48">48x32 High Accuracy (Short Range)</option>
-                        </select>
-                        <button id="config-submit-btn" type="submit" class="pure-button pure-button-primary">apply & reset</button>
-                        <span id="config-status" style="margin-left: 10px; font-weight: bold;"></span>
-                    </fieldset>
-                </form>
+
+            <div class="l-box pure-u-1 pure-u-lg-1-3">
+                <div class="l-box pure-u-1 pure-u-lg-1">
+                    <h3 class="content-subhead">Live Telemetry & Diagnostics</h3>
+                    <div class="telemetry-card">
+                        <div class="temp-bars">
+                            <div class="temp-item">
+                                <div class="temp-name">T0 (SPAD)</div>
+                                <div id="tele-t0" class="temp-val">-- °C</div>
+                            </div>
+                            <div class="temp-item">
+                                <div class="temp-name">T1 (VCSEL)</div>
+                                <div id="tele-t1" class="temp-val">-- °C</div>
+                            </div>
+                            <div class="temp-item">
+                                <div class="temp-name">T2 (Core)</div>
+                                <div id="tele-t2" class="temp-val">-- °C</div>
+                            </div>
+                        </div>
+
+                        <div class="telemetry-grid">
+                            <div class="metric-box">
+                                <div class="metric-box-label">Live Frame Rate</div>
+                                <div id="tele-fps" class="metric-box-value highlight">-- fps</div>
+                                <div class="metric-box-sub">optical throughput</div>
+                            </div>
+                            <div class="metric-box">
+                                <div class="metric-box-label">Active Resolution</div>
+                                <div id="tele-res" class="metric-box-value">--</div>
+                                <div class="metric-box-sub">focal plane</div>
+                            </div>
+                            <div class="metric-box">
+                                <div class="metric-box-label">Frame Counter</div>
+                                <div id="tele-frames" class="metric-box-value">--</div>
+                                <div class="metric-box-sub">total frames</div>
+                            </div>
+                        </div>
+
+                        <div class="setting-desc" style="margin-top: 1em; margin-bottom: 0; font-size: 0.8em;">
+                            Operating State:
+                            <span id="tele-state" class="metric-box-value" style="font-size: 1.05em; color: #3182ce;">--</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="l-box pure-u-1 pure-u-lg-1">
+                    <h3 class="content-subhead">Settings</h3>
+                    <form id="config-form" class="pure-form pure-form-stacked" method="POST" action="/api/config">
+                        <fieldset>
+                            <label for="mode-select">Sensor Mode</label>
+                            <select id="mode-select" name="mode" class="pure-input-1" style="max-width: 440px;">
+                                <option value="0x40">8x8 Default</option>
+                                <option value="0x41">8x8 Long Range (12m)</option>
+                                <option value="0x42">8x8 High Accuracy (Short Range)</option>
+                                <option value="0x43">16x16 Default</option>
+                                <option value="0x44">16x16 High Accuracy (Short Range)</option>
+                                <option value="0x45">32x32 Default</option>
+                                <option value="0x46">32x32 High Accuracy (Short Range)</option>
+                                <option value="0x47" selected>48x32 Default</option>
+                                <option value="0x48">48x32 High Accuracy (Short Range)</option>
+                            </select>
+                            <div class="setting-desc">Selects active optical focal plane array resolution (8x8 up to 48x32) and timing profile.</div>
+
+                            <label for="kiter-input">Exposure Integration (kiter)</label>
+                            <input id="kiter-input" name="kiter" type="number" min="1" max="65535" step="1" placeholder="3510" class="pure-input-1" style="max-width: 240px;">
+                            <div class="preset-pills">
+                                <span style="font-size: 0.82em; color: #7f8c8d; margin-right: 5px;">Presets:</span>
+                                <a class="preset-pill" onclick="setKiter(590)">Fast (590 / ~15 FPS)</a>
+                                <a class="preset-pill" onclick="setKiter(1500)">Balanced (1500 / ~10 FPS)</a>
+                                <a class="preset-pill" onclick="setKiter(3510)">Max Range (3510 / ~5 FPS)</a>
+                            </div>
+                            <div class="setting-desc">Configures the number of VCSEL laser pulses fired per sub-frame in thousands (kiter &times; 1024 pulses). Higher values maximize detection distance (up to 5.7 m) and signal-to-noise ratio; lower values reduce integration time for faster frame rates (up to 15–30 FPS). Range: 1–65535 kiter.</div>
+
+                            <label for="dual-mode-select">Dual Mode</label>
+                            <select id="dual-mode-select" name="dual_mode" class="pure-input-1" style="max-width: 440px;">
+                                <option value="0" selected>0 - Disabled (Standard Single Mode)</option>
+                                <option value="1">1 - Dual Mode Normal Range (High-Accuracy &lt;1.4m &amp; Standard &lt;5.7m)</option>
+                                <option value="2">2 - Dual Mode 8x8 Long Range (High-Accuracy &amp; 8x8 Long Range &lt;11m)</option>
+                            </select>
+                            <div id="dual-mode-hint" style="font-size: 0.82em; color: #2b6cb0; margin-top: 4px; display: none;"></div>
+                            <div class="setting-desc">Continuously alternates each measurement cycle between standard and high-accuracy modes, merging short-range (&lt;300 mm) accuracy with extended long-range detection into a single combined output frame. Note: Dual Mode 2 (11m Long Range) is exclusive to 8x8 modes.</div>
+
+                            <label for="period-input">Measurement Period (ms)</label>
+                            <input id="period-input" name="period_ms" type="number" min="0" max="65535" step="1" value="0" class="pure-input-1" style="max-width: 240px;">
+                            <div class="preset-pills">
+                                <span style="font-size: 0.82em; color: #7f8c8d; margin-right: 5px;">Presets:</span>
+                                <a class="preset-pill" onclick="setPeriod(0)">Free-running (0 ms)</a>
+                                <a class="preset-pill" onclick="setPeriod(33)">33 ms (~30 Hz)</a>
+                                <a class="preset-pill" onclick="setPeriod(66)">66 ms (~15 Hz)</a>
+                                <a class="preset-pill" onclick="setPeriod(100)">100 ms (10 Hz)</a>
+                                <a class="preset-pill" onclick="setPeriod(500)">500 ms (2 Hz)</a>
+                                <a class="preset-pill" onclick="setPeriod(1000)">1000 ms (1 Hz)</a>
+                            </div>
+                            <div class="setting-desc">Target interval between consecutive measurements in milliseconds. Set to 0 ms for free-running capture at maximum achievable frame rate, or higher (e.g. 100 ms) to pace measurements and reduce sensor heating. Range: 0–65535 ms.</div>
+
+                            <label for="peaks-select">Multi-Peak / Multi-Object Reporting</label>
+                            <select id="peaks-select" name="nr_peaks" class="pure-input-1" style="max-width: 320px;">
+                                <option value="1" selected>1 Peak (Closest / Strongest Target)</option>
+                                <option value="2">2 Peaks (Foreground + Background)</option>
+                                <option value="3">3 Peaks</option>
+                                <option value="4">4 Peaks (Maximum multi-target reporting)</option>
+                            </select>
+                            <div class="setting-desc">Direct Time-of-Flight sensors can detect multiple reflective surfaces along an optical ray (e.g. detecting both cover glass smudges and an obstacle behind it). Reports up to 4 peaks per pixel.</div>
+
+                            <div class="form-group-title">E. ROI / Macro-Pixel Cropping</div>
+                            <div class="pure-g" style="max-width: 440px; margin-top: 0.3em;">
+                                <div class="pure-u-1-4" style="padding-right: 5px;">
+                                    <label style="font-size: 0.85em; margin: 0;">Top X</label>
+                                    <input type="number" value="0" disabled style="background: #edf2f7; color: #a0aec0; cursor: not-allowed;">
+                                </div>
+                                <div class="pure-u-1-4" style="padding-right: 5px;">
+                                    <label style="font-size: 0.85em; margin: 0;">Top Y</label>
+                                    <input type="number" value="0" disabled style="background: #edf2f7; color: #a0aec0; cursor: not-allowed;">
+                                </div>
+                                <div class="pure-u-1-4" style="padding-right: 5px;">
+                                    <label style="font-size: 0.85em; margin: 0;">Bottom X</label>
+                                    <input type="number" value="15" disabled style="background: #edf2f7; color: #a0aec0; cursor: not-allowed;">
+                                </div>
+                                <div class="pure-u-1-4">
+                                    <label style="font-size: 0.85em; margin: 0;">Bottom Y</label>
+                                    <input type="number" value="15" disabled style="background: #edf2f7; color: #a0aec0; cursor: not-allowed;">
+                                </div>
+                            </div>
+                            <div class="setting-desc disabled-text">Restricts active SPAD collection to a rectangular macro-pixel sub-region within the 16x16 sensor array to boost localized frame rate and reduce power consumption (informative placeholder; not active by default).</div>
+
+                            <div style="margin-top: 1.5em;">
+                                <button id="config-submit-btn" type="submit" class="pure-button pure-button-primary" style="padding: 0.6em 1.8em; font-size: 1.05em;">apply & reset</button>
+                                <span id="config-status" style="margin-left: 12px; font-weight: bold;"></span>
+                            </div>
+                        </fieldset>
+                    </form>
+                </div>
             </div>
 
         </div>
@@ -78,6 +199,7 @@
             <ul>
                 <li class="mono">GET <a href="/api/config">/api/config</a></li>
                 <li class="mono">POST /api/config</li>
+                <li class="mono">GET <a href="/api/telemetry">/api/telemetry</a></li>
                 <li class="mono">GET <a href="/api/image/depth.png">/api/image/depth.png</a></li>
                 <li class="mono">GET <a href="/api/image/snr.png">/api/image/snr.png</a></li>
             </ul>
@@ -86,81 +208,429 @@
 </div>
 
 <script>
-    function setupAutoRefresh(imgId, toggleId, url, intervalMs) {
-        const img = document.getElementById(imgId);
-        const toggle = document.getElementById(toggleId);
-        if (!img || !toggle) return;
+    // --- COLORMAP PALETTES & LUT GENERATION ---
+    const COLOR_LUTS = {};
 
+    function initColormaps() {
+        // 1. Grayscale
+        const grayLUT = new Uint8Array(256 * 3);
+        for (let i = 0; i < 256; i++) {
+            grayLUT[i * 3] = i;
+            grayLUT[i * 3 + 1] = i;
+            grayLUT[i * 3 + 2] = i;
+        }
+        COLOR_LUTS['grayscale'] = grayLUT;
+
+        // 2. Turbo (Google Turbo Colormap polynomial)
+        const turboLUT = new Uint8Array(256 * 3);
+        for (let i = 0; i < 256; i++) {
+            const x = i / 255.0;
+            const r = 0.1357 + x * (4.61539 - x * (42.6603 - x * (132.131 - x * (161.079 - x * 62.1027))));
+            const g = 0.0914 + x * (2.19419 + x * (4.84297 - x * (14.1850 + x * (4.27730 + x * 2.82957))));
+            const b = 0.1067 + x * (12.5878 - x * (75.3129 - x * (186.290 - x * (192.420 - x * 67.5791))));
+            turboLUT[i * 3] = Math.round(Math.max(0, Math.min(1, r)) * 255);
+            turboLUT[i * 3 + 1] = Math.round(Math.max(0, Math.min(1, g)) * 255);
+            turboLUT[i * 3 + 2] = Math.round(Math.max(0, Math.min(1, b)) * 255);
+        }
+        COLOR_LUTS['turbo'] = turboLUT;
+
+        // 3. Jet
+        const jetLUT = new Uint8Array(256 * 3);
+        for (let i = 0; i < 256; i++) {
+            const x = i / 255.0;
+            const r = Math.max(0, Math.min(1, 1.5 - Math.abs(x * 4.0 - 3.0)));
+            const g = Math.max(0, Math.min(1, 1.5 - Math.abs(x * 4.0 - 2.0)));
+            const b = Math.max(0, Math.min(1, 1.5 - Math.abs(x * 4.0 - 1.0)));
+            jetLUT[i * 3] = Math.round(r * 255);
+            jetLUT[i * 3 + 1] = Math.round(g * 255);
+            jetLUT[i * 3 + 2] = Math.round(b * 255);
+        }
+        COLOR_LUTS['jet'] = jetLUT;
+
+        // Helper for interpolated stop LUTs
+        function createStopLUT(stops) {
+            const lut = new Uint8Array(256 * 3);
+            const numSegments = stops.length - 1;
+            for (let i = 0; i < 256; i++) {
+                const pos = (i / 255.0) * numSegments;
+                const idx = Math.min(Math.floor(pos), numSegments - 1);
+                const t = pos - idx;
+                const c0 = stops[idx];
+                const c1 = stops[idx + 1];
+                lut[i * 3] = Math.round(c0[0] + (c1[0] - c0[0]) * t);
+                lut[i * 3 + 1] = Math.round(c0[1] + (c1[1] - c0[1]) * t);
+                lut[i * 3 + 2] = Math.round(c0[2] + (c1[2] - c0[2]) * t);
+            }
+            return lut;
+        }
+
+        // 4. Viridis
+        const viridisStops = [
+            [68, 1, 84], [72, 35, 120], [64, 67, 135], [52, 94, 141],
+            [41, 120, 142], [32, 144, 140], [34, 167, 132], [68, 190, 112],
+            [121, 209, 81], [189, 222, 38], [253, 231, 37]
+        ];
+        COLOR_LUTS['viridis'] = createStopLUT(viridisStops);
+
+        // 5. Inferno
+        const infernoStops = [
+            [0, 0, 4], [40, 11, 84], [101, 21, 110], [159, 42, 99],
+            [212, 72, 66], [245, 125, 21], [250, 193, 39], [252, 255, 164]
+        ];
+        COLOR_LUTS['inferno'] = createStopLUT(infernoStops);
+    }
+
+    // --- 16-BIT PNG DECODER ---
+    function decodeGray16Png(arrayBuffer) {
+        const dataView = new DataView(arrayBuffer);
+        const bytes = new Uint8Array(arrayBuffer);
+
+        if (bytes.length < 8 ||
+            bytes[0] !== 0x89 || bytes[1] !== 0x50 || bytes[2] !== 0x4E || bytes[3] !== 0x47 ||
+            bytes[4] !== 0x0D || bytes[5] !== 0x0A || bytes[6] !== 0x1A || bytes[7] !== 0x0A) {
+            throw new Error('Invalid PNG signature');
+        }
+
+        let offset = 8;
+        let width = 0;
+        let height = 0;
+        let bitDepth = 0;
+        let colorType = 0;
+        let idatDataOffset = -1;
+
+        while (offset + 8 <= bytes.length) {
+            const chunkLen = dataView.getUint32(offset, false);
+            const chunkType = String.fromCharCode(
+                bytes[offset + 4], bytes[offset + 5], bytes[offset + 6], bytes[offset + 7]
+            );
+            const dataOffset = offset + 8;
+
+            if (chunkType === 'IHDR') {
+                width = dataView.getUint32(dataOffset, false);
+                height = dataView.getUint32(dataOffset + 4, false);
+                bitDepth = bytes[dataOffset + 8];
+                colorType = bytes[dataOffset + 9];
+            } else if (chunkType === 'IDAT') {
+                idatDataOffset = dataOffset;
+                break;
+            }
+
+            offset += 12 + chunkLen;
+        }
+
+        if (width === 0 || height === 0 || idatDataOffset === -1) {
+            throw new Error('Incomplete PNG data');
+        }
+
+        // In uncompressed DEFLATE PNG (zlib 2 bytes + deflate non-compressed block 5 bytes),
+        // raw scanlines start at byte 7 of IDAT payload
+        const scanlineOffset = idatDataOffset + 7;
+        const distances = new Uint16Array(width * height);
+
+        if (bitDepth === 16 && colorType === 0) {
+            const rowBytes = 1 + width * 2; // 1 filter byte + width * 2 bytes
+            for (let y = 0; y < height; y++) {
+                const rowStart = scanlineOffset + y * rowBytes;
+                for (let x = 0; x < width; x++) {
+                    const pixelOffset = rowStart + 1 + x * 2;
+                    // 16-bit big endian raw distance (reported in 0.25 mm units)
+                    const rawVal = (bytes[pixelOffset] << 8) | bytes[pixelOffset + 1];
+                    distances[y * width + x] = rawVal;
+                }
+            }
+        }
+
+        return { width: width, height: height, distances: distances };
+    }
+
+    // --- DEPTH CANVAS & COLORMAP RENDERER ---
+    let lastDepthDistances = null;
+    let lastDepthWidth = 0;
+    let lastDepthHeight = 0;
+
+    function renderDepthCanvas(decoded) {
+        if (!decoded || !decoded.distances) return;
+        lastDepthDistances = decoded.distances;
+        lastDepthWidth = decoded.width;
+        lastDepthHeight = decoded.height;
+        drawDepthCanvas();
+    }
+
+    function drawDepthCanvas() {
+        if (!lastDepthDistances || lastDepthWidth === 0 || lastDepthHeight === 0) return;
+        const canvas = document.getElementById('depth-canvas');
+        if (!canvas) return;
+
+        if (canvas.width !== lastDepthWidth || canvas.height !== lastDepthHeight) {
+            canvas.width = lastDepthWidth;
+            canvas.height = lastDepthHeight;
+        }
+
+        const ctx = canvas.getContext('2d');
+        const colormapName = document.getElementById('colormap-select').value || 'turbo';
+        const lut = COLOR_LUTS[colormapName] || COLOR_LUTS['turbo'];
+
+        const outImgData = ctx.createImageData(lastDepthWidth, lastDepthHeight);
+        const outData = outImgData.data;
+
+        // Mode-aware scaling for optimal colormap gradient
+        const modeSelect = document.getElementById('mode-select');
+        const modeVal = modeSelect ? modeSelect.value : '0x47';
+        let maxDistMm = 5000;
+        if (modeVal === '0x41') {
+            maxDistMm = 11000; // 8x8 Long Range (11-12m)
+        } else if (modeVal === '0x42' || modeVal === '0x44' || modeVal === '0x46' || modeVal === '0x48') {
+            maxDistMm = 1500;  // High Accuracy Short Range (<1.4m)
+        }
+
+        const totalPixels = lastDepthWidth * lastDepthHeight;
+        for (let i = 0; i < totalPixels; i++) {
+            const rawDist = lastDepthDistances[i];
+            const outIdx = i * 4;
+
+            if (rawDist === 0) {
+                // Invalid / no target detected -> dark background
+                outData[outIdx] = 15;
+                outData[outIdx + 1] = 15;
+                outData[outIdx + 2] = 20;
+                outData[outIdx + 3] = 255;
+            } else {
+                const distMm = rawDist / 4.0; // 0.25mm units -> mm
+                const norm = Math.min(1.0, Math.max(0.0, distMm / maxDistMm));
+                const lutVal = Math.min(255, Math.max(1, Math.round(norm * 254) + 1));
+                const lutIdx = lutVal * 3;
+
+                outData[outIdx] = lut[lutIdx];
+                outData[outIdx + 1] = lut[lutIdx + 1];
+                outData[outIdx + 2] = lut[lutIdx + 2];
+                outData[outIdx + 3] = 255;
+            }
+        }
+
+        ctx.putImageData(outImgData, 0, 0);
+    }
+
+    function reapplyColormap() {
+        drawDepthCanvas();
+    }
+
+    function setupPixelInspector() {
+        const canvas = document.getElementById('depth-canvas');
+        const info = document.getElementById('depth-pixel-info');
+        if (!canvas || !info) return;
+
+        canvas.addEventListener('mousemove', function(e) {
+            if (!lastDepthDistances || lastDepthWidth === 0 || lastDepthHeight === 0) return;
+            const rect = canvas.getBoundingClientRect();
+            const x = Math.floor(((e.clientX - rect.left) / rect.width) * lastDepthWidth);
+            const y = Math.floor(((e.clientY - rect.top) / rect.height) * lastDepthHeight);
+
+            if (x >= 0 && x < lastDepthWidth && y >= 0 && y < lastDepthHeight) {
+                const idx = y * lastDepthWidth + x;
+                const rawDist = lastDepthDistances[idx];
+                if (rawDist > 0) {
+                    const distMm = Math.round(rawDist / 4.0);
+                    const distCm = (rawDist / 40.0).toFixed(1);
+                    const distM = (rawDist / 4000.0).toFixed(2);
+                    info.textContent = 'Pixel (' + x + ', ' + y + '): ' + distMm + ' mm (' + distCm + ' cm / ' + distM + ' m) [raw: ' + rawDist + ']';
+                } else {
+                    info.textContent = 'Pixel (' + x + ', ' + y + '): No target (0 mm)';
+                }
+            }
+        });
+
+        canvas.addEventListener('mouseleave', function() {
+            info.textContent = 'Hover over pixels to inspect distance';
+        });
+    }
+
+    // --- AUTO-REFRESH CONTROLLER ---
+    function loadDepthFrame(onComplete) {
+        fetch('/api/image/depth.png?_t=' + Date.now())
+            .then(function(res) {
+                if (!res.ok) throw new Error('HTTP ' + res.status);
+                return res.arrayBuffer();
+            })
+            .then(function(buffer) {
+                const decoded = decodeGray16Png(buffer);
+                if (decoded) {
+                    renderDepthCanvas(decoded);
+                }
+                if (onComplete) onComplete(true);
+            })
+            .catch(function(err) {
+                console.warn('Depth fetch error', err);
+                if (onComplete) onComplete(false);
+            });
+    }
+
+    function setupDepthAutoRefresh(intervalMs) {
+        const toggle = document.getElementById('depth-autorefresh');
+        if (!toggle) return;
         let timer = null;
 
         function scheduleNext(delay) {
             if (timer) clearTimeout(timer);
-            timer = setTimeout(fetchImage, delay);
+            timer = setTimeout(fetchDepthFrame, delay);
         }
 
-        function fetchImage() {
+        function fetchDepthFrame() {
             if (!toggle.checked) return;
+            loadDepthFrame(function(success) {
+                if (toggle.checked) {
+                    scheduleNext(success ? intervalMs : Math.max(intervalMs, 1000));
+                }
+            });
+        }
 
+        toggle.addEventListener('change', function() {
+            if (this.checked) fetchDepthFrame();
+            else if (timer) { clearTimeout(timer); timer = null; }
+        });
+    }
+
+    function setupSnrAutoRefresh(intervalMs) {
+        const img = document.getElementById('snr-image');
+        const toggle = document.getElementById('snr-autorefresh');
+        if (!img || !toggle) return;
+        let timer = null;
+
+        function scheduleNext(delay) {
+            if (timer) clearTimeout(timer);
+            timer = setTimeout(fetchSnrFrame, delay);
+        }
+
+        function fetchSnrFrame() {
+            if (!toggle.checked) return;
             const preloader = new Image();
-            const queryUrl = url + (url.indexOf('?') === -1 ? '?' : '&') + '_t=' + Date.now();
-
             preloader.onload = function() {
                 if (toggle.checked) {
                     img.src = preloader.src;
                     scheduleNext(intervalMs);
                 }
             };
-
             preloader.onerror = function() {
-                if (toggle.checked) {
-                    scheduleNext(Math.max(intervalMs, 1000));
-                }
+                if (toggle.checked) scheduleNext(Math.max(intervalMs, 1000));
             };
-
-            preloader.src = queryUrl;
+            preloader.src = '/api/image/snr.png?_t=' + Date.now();
         }
 
         toggle.addEventListener('change', function() {
-            if (this.checked) {
-                fetchImage();
-            } else {
-                if (timer) {
-                    clearTimeout(timer);
-                    timer = null;
+            if (this.checked) fetchSnrFrame();
+            else if (timer) { clearTimeout(timer); timer = null; }
+        });
+    }
+
+    // --- TELEMETRY & DIAGNOSTICS POLLER ---
+    function pollTelemetry() {
+        fetch('/api/telemetry')
+            .then(function(res) { return res.json(); })
+            .then(function(data) {
+                if (!data) return;
+                const t0 = document.getElementById('tele-t0');
+                const t1 = document.getElementById('tele-t1');
+                const t2 = document.getElementById('tele-t2');
+                const fps = document.getElementById('tele-fps');
+                const res = document.getElementById('tele-res');
+                const frames = document.getElementById('tele-frames');
+                const state = document.getElementById('tele-state');
+
+                if (t0) t0.textContent = data.temp0 + ' °C';
+                if (t1) t1.textContent = data.temp1 + ' °C';
+                if (t2) t2.textContent = data.temp2 + ' °C';
+                if (fps) fps.textContent = (data.fps > 0 ? data.fps.toFixed(1) : '0.0') + ' fps';
+                if (res) res.textContent = (data.width && data.height) ? (data.width + ' × ' + data.height) : '--';
+                if (frames) frames.textContent = data.frame_counter != null ? data.frame_counter : '--';
+                if (state) state.textContent = data.state || 'ACTIVE';
+            })
+            .catch(function(err) {
+                console.warn('Telemetry poll error', err);
+            });
+    }
+
+    // --- CONFIGURATION SYNC & SUBMISSION ---
+    function setKiter(val) {
+        const input = document.getElementById('kiter-input');
+        if (input) input.value = val;
+    }
+
+    function setPeriod(val) {
+        const input = document.getElementById('period-input');
+        if (input) input.value = val;
+    }
+
+    function syncCurrentConfig() {
+        fetch('/api/config')
+            .then(function(res) { return res.json(); })
+            .then(function(data) {
+                if (!data) return;
+                const modeSelect = document.getElementById('mode-select');
+                const kiterInput = document.getElementById('kiter-input');
+                const dualSelect = document.getElementById('dual-mode-select');
+                const periodInput = document.getElementById('period-input');
+                const peaksSelect = document.getElementById('peaks-select');
+
+                if (modeSelect && data.mode_cmd) modeSelect.value = data.mode_cmd;
+                if (kiterInput && data.kilo_iterations != null) kiterInput.value = data.kilo_iterations;
+                if (dualSelect && data.dual_mode != null) dualSelect.value = String(data.dual_mode);
+                if (periodInput && data.period_ms != null) periodInput.value = data.period_ms;
+                if (peaksSelect && data.nr_peaks != null) peaksSelect.value = String(data.nr_peaks);
+            })
+            .catch(function(err) {
+                console.warn('Could not sync config', err);
+            });
+    }
+
+    function is8x8Mode(cmd) {
+        return cmd === '0x40' || cmd === '0x41' || cmd === '0x42';
+    }
+
+    function setupModeConstraints() {
+        const modeSelect = document.getElementById('mode-select');
+        const dualSelect = document.getElementById('dual-mode-select');
+        const hint = document.getElementById('dual-mode-hint');
+        if (!modeSelect || !dualSelect) return;
+
+        dualSelect.addEventListener('change', function() {
+            if (this.value === '2') {
+                if (!is8x8Mode(modeSelect.value)) {
+                    modeSelect.value = '0x41'; // 8x8 Long Range
+                    if (hint) {
+                        hint.textContent = 'ℹ️ Automatically switched Sensor Mode to "8x8 Long Range" (required for Dual Mode 2).';
+                        hint.style.display = 'block';
+                        setTimeout(function() { hint.style.display = 'none'; }, 4500);
+                    }
+                }
+            }
+        });
+
+        modeSelect.addEventListener('change', function() {
+            if (!is8x8Mode(this.value) && dualSelect.value === '2') {
+                dualSelect.value = '1'; // Fallback to normal dual mode for 16x16/32x32/48x32
+                if (hint) {
+                    hint.textContent = 'ℹ️ Dual Mode 2 is exclusive to 8x8; adjusted to Dual Mode 1 (Normal Range).';
+                    hint.style.display = 'block';
+                    setTimeout(function() { hint.style.display = 'none'; }, 4500);
                 }
             }
         });
     }
 
-    function syncCurrentConfig() {
-        const select = document.getElementById('mode-select');
-        if (!select) return;
-        fetch('/api/config')
-            .then(function(res) { return res.json(); })
-            .then(function(data) {
-                if (data && data.mode_cmd) {
-                    select.value = data.mode_cmd;
-                }
-            })
-            .catch(function(err) {
-                console.warn('Could not fetch active config', err);
-            });
-    }
-
     function setupConfigForm() {
         const form = document.getElementById('config-form');
-        const select = document.getElementById('mode-select');
         const btn = document.getElementById('config-submit-btn');
         const status = document.getElementById('config-status');
-        if (!form || !select || !btn) return;
+        if (!form || !btn) return;
 
         form.addEventListener('submit', function(e) {
             e.preventDefault();
             btn.disabled = true;
             if (status) {
-                status.textContent = 'Applying...';
+                status.textContent = 'Applying & Resetting...';
                 status.style.color = '#34495e';
             }
+
+            const formData = new URLSearchParams(new FormData(form)).toString();
 
             fetch('/api/config', {
                 method: 'POST',
@@ -168,7 +638,7 @@
                     'Content-Type': 'application/x-www-form-urlencoded',
                     'Accept': 'application/json'
                 },
-                body: 'mode=' + encodeURIComponent(select.value)
+                body: formData
             })
             .then(function(res) {
                 if (!res.ok) throw new Error('HTTP ' + res.status);
@@ -176,14 +646,17 @@
             })
             .then(function(data) {
                 if (status) {
-                    status.textContent = 'Applied!';
+                    status.textContent = 'Applied & Reset successfully!';
                     status.style.color = '#27ae60';
-                    setTimeout(function() { status.textContent = ''; }, 3000);
+                    setTimeout(function() { status.textContent = ''; }, 3500);
                 }
                 syncCurrentConfig();
-                const depthImg = document.getElementById('depth-image');
+                pollTelemetry();
+
+                // Refresh initial depth and SNR images
+                loadDepthFrame();
+
                 const snrImg = document.getElementById('snr-image');
-                if (depthImg) depthImg.src = '/api/image/depth.png?_t=' + Date.now();
                 if (snrImg) snrImg.src = '/api/image/snr.png?_t=' + Date.now();
             })
             .catch(function(err) {
@@ -198,11 +671,25 @@
         });
     }
 
+    // --- INITIALIZATION ---
     document.addEventListener('DOMContentLoaded', function() {
-        setupAutoRefresh('depth-image', 'depth-autorefresh', '/api/image/depth.png', 200);
-        setupAutoRefresh('snr-image', 'snr-autorefresh', '/api/image/snr.png', 200);
+        initColormaps();
+        setupPixelInspector();
+
+        document.getElementById('colormap-select').addEventListener('change', reapplyColormap);
+
+        // Initial depth canvas draw
+        loadDepthFrame();
+
+        setupDepthAutoRefresh(200);
+        setupSnrAutoRefresh(200);
+
         syncCurrentConfig();
+        setupModeConstraints();
         setupConfigForm();
+
+        pollTelemetry();
+        setInterval(pollTelemetry, 1000);
     });
 </script>
 </body>

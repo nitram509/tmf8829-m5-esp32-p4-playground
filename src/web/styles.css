@@ -359,3 +359,138 @@ a.pure-button-primary {
         font-size: 300%;
     }
 }
+
+/*
+ * -- SETTINGS & TELEMETRY STYLES --
+ */
+.setting-desc {
+    color: #666;
+    font-size: 0.88em;
+    margin-top: -0.3em;
+    margin-bottom: 1em;
+    line-height: 1.4em;
+}
+
+.setting-desc.disabled-text {
+    color: #999;
+    font-style: italic;
+}
+
+.form-group-title {
+    font-weight: bold;
+    color: #2c3e50;
+    margin-top: 1.2em;
+    margin-bottom: 0.3em;
+    font-size: 1.05em;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 0.2em;
+}
+
+.preset-pills {
+    margin-top: -0.5em;
+    margin-bottom: 0.8em;
+}
+
+.preset-pill {
+    display: inline-block;
+    background: #eef2f7;
+    color: #2980b9;
+    border: 1px solid #d4e1f0;
+    border-radius: 12px;
+    padding: 2px 10px;
+    font-size: 0.82em;
+    margin-right: 5px;
+    margin-bottom: 5px;
+    cursor: pointer;
+    text-decoration: none;
+    transition: background 0.15s ease;
+}
+
+.preset-pill:hover {
+    background: #dce7f5;
+}
+
+/* Diagnostics & Telemetry Panel */
+.telemetry-card {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    padding: 1em;
+    margin-bottom: 1.5em;
+}
+
+.telemetry-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+    gap: 0.8em;
+    margin-top: 0.8em;
+}
+
+.metric-box {
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 4px;
+    padding: 0.6em;
+    text-align: center;
+}
+
+.metric-box-label {
+    font-size: 0.78em;
+    text-transform: uppercase;
+    color: #718096;
+    letter-spacing: 0.05em;
+    margin-bottom: 0.2em;
+}
+
+.metric-box-value {
+    font-size: 1.25em;
+    font-weight: bold;
+    color: #2b6cb0;
+}
+
+.metric-box-value.highlight {
+    color: #27ae60;
+}
+
+.metric-box-sub {
+    font-size: 0.75em;
+    color: #a0aec0;
+}
+
+.temp-bars {
+    display: flex;
+    justify-content: space-between;
+    gap: 6px;
+    margin-top: 0.5em;
+}
+
+.temp-item {
+    flex: 1;
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 4px;
+    padding: 0.4em 0.2em;
+    text-align: center;
+}
+
+.temp-name {
+    font-size: 0.72em;
+    color: #718096;
+}
+
+.temp-val {
+    font-size: 1.05em;
+    font-weight: bold;
+    color: #e67e22;
+}
+
+.pixel-inspector {
+    margin-top: 0.4em;
+    font-size: 0.82em;
+    color: #4a5568;
+    background: #edf2f7;
+    padding: 2px 8px;
+    border-radius: 4px;
+    display: inline-block;
+    min-height: 1.6em;
+}

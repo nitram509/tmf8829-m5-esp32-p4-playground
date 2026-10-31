@@ -51,6 +51,20 @@ bool is_distance_map_available();
  */
 bool get_latest_temperatures(int8_t *out_temp0, int8_t *out_temp1, int8_t *out_temp2);
 
+/** @brief Retrieves real-time sensor telemetry including temperatures, FPS, dimensions, and frame counter.
+ *  @param out_temp0 Output temperature sensor 0 (°C).
+ *  @param out_temp1 Output temperature sensor 1 (°C).
+ *  @param out_temp2 Output temperature sensor 2 (°C).
+ *  @param out_fps Output real-time FPS calculation.
+ *  @param out_width Output active frame width.
+ *  @param out_height Output active frame height.
+ *  @param out_frame_counter Output total frame count.
+ *  @return true if telemetry is available, false otherwise.
+ */
+bool get_sensor_telemetry(int8_t *out_temp0, int8_t *out_temp1, int8_t *out_temp2,
+                          float *out_fps, uint16_t *out_width, uint16_t *out_height,
+                          uint32_t *out_frame_counter);
+
 struct CaptureTimings {
     int64_t activate_us;
     int64_t grab_us;

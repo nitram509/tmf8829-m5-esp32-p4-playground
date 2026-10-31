@@ -172,6 +172,9 @@ static esp_err_t config_get_handler(httpd_req_t *req) {
     uint16_t kiloIter = static_cast<uint16_t>(tmf8829.config[TMF8829_CFG_KILO_ITERATIONS_LSB - TMF8829_CFG_PERIOD_MS_LSB])
                         | (static_cast<uint16_t>(tmf8829.config[TMF8829_CFG_KILO_ITERATIONS_MSB - TMF8829_CFG_PERIOD_MS_LSB]) << 8);
     uint8_t fpMode = tmf8829.config[TMF8829_CFG_FP_MODE - TMF8829_CFG_PERIOD_MS_LSB];
+    uint8_t dualMode = tmf8829.config[TMF8829_CFG_ENABLE_DUAL_MODE - TMF8829_CFG_PERIOD_MS_LSB] & 0x03;
+    uint8_t nrPeaks = tmf8829.config[TMF8829_CFG_RESULT_FORMAT - TMF8829_CFG_PERIOD_MS_LSB] & TMF8829_CFG_RESULT_FORMAT_NR_PEAKS_MASK;
+    if (nrPeaks == 0) nrPeaks = 1;
 
     const char *stateStr = (stateTmf8829 == TMF8829_STATE_MEASURE) ? "MEASURE" :
                            (stateTmf8829 == TMF8829_STATE_STOPPED) ? "STOPPED" :
@@ -186,6 +189,8 @@ static esp_err_t config_get_handler(httpd_req_t *req) {
         "  \"fp_mode_name\": \"%s\",\n"
         "  \"period_ms\": %u,\n"
         "  \"kilo_iterations\": %u,\n"
+        "  \"dual_mode\": %u,\n"
+        "  \"nr_peaks\": %u,\n"
         "  \"state\": \"%s\",\n"
         "  \"modes\": [\n"
         "    {\"cmd\": \"0x40\", \"name\": \"8x8 Default\"},\n"
@@ -205,6 +210,8 @@ static esp_err_t config_get_handler(httpd_req_t *req) {
         getFpModeName(fpMode),
         period,
         kiloIter,
+        dualMode,
+        nrPeaks,
         stateStr
     );
 
@@ -218,7 +225,7 @@ static esp_err_t config_post_handler(httpd_req_t *req) {
         return ESP_FAIL;
     }
 
-    char buf[256];
+    char buf[512];
     int remaining = req->content_len;
     if (remaining <= 0 || remaining >= sizeof(buf)) {
         httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Invalid content length");
@@ -237,30 +244,79 @@ static esp_err_t config_post_handler(httpd_req_t *req) {
     ESP_LOGI(TAG, "POST /api/config payload: %s", buf);
 
     uint8_t selectedCmd = 0;
-    char mode_str[32] = {0};
+    uint16_t kiter = 0;
+    uint16_t period_ms = 0;
+    uint8_t dual_mode = 0;
+    uint8_t nr_peaks = 1;
 
-    // Try parsing application/x-www-form-urlencoded
-    if (httpd_query_key_value(buf, "mode", mode_str, sizeof(mode_str)) == ESP_OK ||
-        httpd_query_key_value(buf, "cmd", mode_str, sizeof(mode_str)) == ESP_OK) {
-        selectedCmd = static_cast<uint8_t>(strtol(mode_str, nullptr, 0));
-    } else {
-        // Try finding "mode": or "cmd": in JSON or raw number
-        char *p = strstr(buf, "mode");
-        if (!p) p = strstr(buf, "cmd");
+    char val_str[32] = {0};
+
+    // Try parsing urlencoded fields
+    if (httpd_query_key_value(buf, "mode", val_str, sizeof(val_str)) == ESP_OK ||
+        httpd_query_key_value(buf, "cmd", val_str, sizeof(val_str)) == ESP_OK) {
+        selectedCmd = static_cast<uint8_t>(strtol(val_str, nullptr, 0));
+    }
+    if (httpd_query_key_value(buf, "kiter", val_str, sizeof(val_str)) == ESP_OK ||
+        httpd_query_key_value(buf, "kilo_iterations", val_str, sizeof(val_str)) == ESP_OK) {
+        kiter = static_cast<uint16_t>(strtol(val_str, nullptr, 0));
+    }
+    if (httpd_query_key_value(buf, "period_ms", val_str, sizeof(val_str)) == ESP_OK ||
+        httpd_query_key_value(buf, "period", val_str, sizeof(val_str)) == ESP_OK) {
+        period_ms = static_cast<uint16_t>(strtol(val_str, nullptr, 0));
+    }
+    if (httpd_query_key_value(buf, "dual_mode", val_str, sizeof(val_str)) == ESP_OK) {
+        dual_mode = static_cast<uint8_t>(strtol(val_str, nullptr, 0));
+    }
+    if (httpd_query_key_value(buf, "nr_peaks", val_str, sizeof(val_str)) == ESP_OK ||
+        httpd_query_key_value(buf, "peaks", val_str, sizeof(val_str)) == ESP_OK) {
+        nr_peaks = static_cast<uint8_t>(strtol(val_str, nullptr, 0));
+    }
+
+    // JSON format support
+    if (buf[0] == '{') {
+        char *p = strstr(buf, "\"mode\"");
+        if (!p) p = strstr(buf, "\"cmd\"");
         if (p) {
-            while (*p && (*p < '0' || *p > '9') && *p != 'x' && *p != 'X') {
-                p++;
-            }
-            if (*p) {
-                selectedCmd = static_cast<uint8_t>(strtol(p, nullptr, 0));
-            }
-        } else {
-            // Check if entire payload is just a number (e.g. "0x47" or "71")
-            selectedCmd = static_cast<uint8_t>(strtol(buf, nullptr, 0));
+            p = strchr(p, ':');
+            if (p) selectedCmd = static_cast<uint8_t>(strtol(p + 1, nullptr, 0));
+        }
+        p = strstr(buf, "\"kiter\"");
+        if (!p) p = strstr(buf, "\"kilo_iterations\"");
+        if (p) {
+            p = strchr(p, ':');
+            if (p) kiter = static_cast<uint16_t>(strtol(p + 1, nullptr, 0));
+        }
+        p = strstr(buf, "\"period_ms\"");
+        if (!p) p = strstr(buf, "\"period\"");
+        if (p) {
+            p = strchr(p, ':');
+            if (p) period_ms = static_cast<uint16_t>(strtol(p + 1, nullptr, 0));
+        }
+        p = strstr(buf, "\"dual_mode\"");
+        if (p) {
+            p = strchr(p, ':');
+            if (p) dual_mode = static_cast<uint8_t>(strtol(p + 1, nullptr, 0));
+        }
+        p = strstr(buf, "\"nr_peaks\"");
+        if (!p) p = strstr(buf, "\"peaks\"");
+        if (p) {
+            p = strchr(p, ':');
+            if (p) nr_peaks = static_cast<uint8_t>(strtol(p + 1, nullptr, 0));
         }
     }
 
-    // Validate that selectedCmd is one of the 9 valid preconfig commands
+    // Default to current mode if not specified or raw value passed
+    if (selectedCmd == 0) {
+        if (buf[0] >= '0' && buf[0] <= '9') {
+            selectedCmd = static_cast<uint8_t>(strtol(buf, nullptr, 0));
+        } else {
+            selectedCmd = (currentMeasConfigNr >= 0 && currentMeasConfigNr < NR_OF_MEAS_CFGS)
+                          ? static_cast<uint8_t>(measConfig[currentMeasConfigNr])
+                          : static_cast<uint8_t>(TMF8829_CMD_STAT__cmd_stat__CMD_LOAD_CFG_48X32);
+        }
+    }
+
+    // Validate mode command
     bool valid = false;
     for (int i = 0; i < NR_OF_MEAS_CFGS; i++) {
         if (measConfig[i] == selectedCmd) {
@@ -275,8 +331,34 @@ static esp_err_t config_post_handler(httpd_req_t *req) {
         return ESP_FAIL;
     }
 
-    ESP_LOGI(TAG, "Applying sensor mode 0x%02X (%s) & resetting stream...", selectedCmd, getPreconfigName(selectedCmd));
-    if (!apply_and_reset_sensor_mode(selectedCmd)) {
+    if (nr_peaks < 1 || nr_peaks > 4) {
+        nr_peaks = 1;
+    }
+
+    // Enforce 8x8 mode constraint for Dual Mode 2 (11m Long Range)
+    if (dual_mode == 2) {
+        if (selectedCmd != TMF8829_CMD_STAT__cmd_stat__CMD_LOAD_CFG_8X8 &&
+            selectedCmd != TMF8829_CMD_STAT__cmd_stat__CMD_LOAD_CFG_8X8_LONG_RANGE &&
+            selectedCmd != TMF8829_CMD_STAT__cmd_stat__CMD_LOAD_CFG_8X8_HIGH_ACCURACY) {
+            ESP_LOGI(TAG, "Dual Mode 2 is exclusive to 8x8 modes; adjusting mode from 0x%02X to 0x%02X (%s)",
+                     selectedCmd, TMF8829_CMD_STAT__cmd_stat__CMD_LOAD_CFG_8X8_LONG_RANGE,
+                     getPreconfigName(TMF8829_CMD_STAT__cmd_stat__CMD_LOAD_CFG_8X8_LONG_RANGE));
+            selectedCmd = TMF8829_CMD_STAT__cmd_stat__CMD_LOAD_CFG_8X8_LONG_RANGE;
+        }
+    }
+
+    SensorConfigParams params = {
+        .modeCmd = selectedCmd,
+        .kiloIterations = kiter,
+        .periodMs = period_ms,
+        .dualMode = dual_mode,
+        .nrPeaks = nr_peaks
+    };
+
+    ESP_LOGI(TAG, "Applying sensor config: mode=0x%02X (%s), kiter=%u, period=%u ms, dual=%u, peaks=%u",
+             selectedCmd, getPreconfigName(selectedCmd), kiter, period_ms, dual_mode, nr_peaks);
+
+    if (!apply_and_reset_sensor_config(params)) {
         httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to apply sensor configuration");
         return ESP_FAIL;
     }
@@ -286,10 +368,10 @@ static esp_err_t config_post_handler(httpd_req_t *req) {
     esp_err_t hdr_err = httpd_req_get_hdr_value_str(req, "Accept", accept_hdr, sizeof(accept_hdr));
     if ((hdr_err == ESP_OK || hdr_err == ESP_ERR_HTTPD_RESULT_TRUNC) &&
         strstr(accept_hdr, "application/json") != nullptr) {
-        char resp_json[128];
+        char resp_json[256];
         int resp_len = snprintf(resp_json, sizeof(resp_json),
-                                "{\"status\":\"ok\",\"mode\":\"0x%02X\",\"mode_name\":\"%s\"}\n",
-                                selectedCmd, getPreconfigName(selectedCmd));
+                                "{\"status\":\"ok\",\"mode\":\"0x%02X\",\"mode_name\":\"%s\",\"kilo_iterations\":%u,\"period_ms\":%u,\"dual_mode\":%u,\"nr_peaks\":%u}\n",
+                                selectedCmd, getPreconfigName(selectedCmd), kiter, period_ms, dual_mode, nr_peaks);
         httpd_resp_set_type(req, "application/json");
         return httpd_resp_send(req, resp_json, resp_len);
     }
@@ -298,6 +380,37 @@ static esp_err_t config_post_handler(httpd_req_t *req) {
     httpd_resp_set_status(req, "303 See Other");
     httpd_resp_set_hdr(req, "Location", "/");
     return httpd_resp_send(req, nullptr, 0);
+}
+
+static esp_err_t telemetry_get_handler(httpd_req_t *req) {
+    int8_t temp0 = 0, temp1 = 0, temp2 = 0;
+    float fps = 0.0f;
+    uint16_t width = 0, height = 0;
+    uint32_t frame_counter = 0;
+
+    get_sensor_telemetry(&temp0, &temp1, &temp2, &fps, &width, &height, &frame_counter);
+
+    const char *stateStr = (stateTmf8829 == TMF8829_STATE_MEASURE) ? "MEASURE" :
+                           (stateTmf8829 == TMF8829_STATE_STOPPED) ? "STOPPED" :
+                           (stateTmf8829 == TMF8829_STATE_STANDBY) ? "STANDBY" : "UNKNOWN";
+
+    char json[256];
+    int len = snprintf(json, sizeof(json),
+        "{\n"
+        "  \"temp0\": %d,\n"
+        "  \"temp1\": %d,\n"
+        "  \"temp2\": %d,\n"
+        "  \"fps\": %.1f,\n"
+        "  \"width\": %u,\n"
+        "  \"height\": %u,\n"
+        "  \"frame_counter\": %lu,\n"
+        "  \"state\": \"%s\"\n"
+        "}\n",
+        temp0, temp1, temp2, fps, width, height, static_cast<unsigned long>(frame_counter), stateStr
+    );
+
+    httpd_resp_set_type(req, "application/json");
+    return httpd_resp_send(req, json, len);
 }
 
 static constexpr httpd_uri_t uri_root = {
@@ -363,6 +476,20 @@ static constexpr httpd_uri_t uri_api_config_post = {
     .user_ctx  = nullptr
 };
 
+static constexpr httpd_uri_t uri_api_telemetry_get = {
+    .uri       = "/api/telemetry",
+    .method    = HTTP_GET,
+    .handler   = telemetry_get_handler,
+    .user_ctx  = nullptr
+};
+
+static constexpr httpd_uri_t uri_api_status_get = {
+    .uri       = "/api/status",
+    .method    = HTTP_GET,
+    .handler   = telemetry_get_handler,
+    .user_ctx  = nullptr
+};
+
 esp_err_t start_webserver() {
     if (s_server != nullptr) {
         return ESP_OK;
@@ -389,6 +516,8 @@ esp_err_t start_webserver() {
         &uri_api_image_snr_png,
         &uri_api_config_get,
         &uri_api_config_post,
+        &uri_api_telemetry_get,
+        &uri_api_status_get,
     };
 
     for (const auto *handler : handlers) {

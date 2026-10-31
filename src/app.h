@@ -30,6 +30,14 @@ extern const int measConfig[NR_OF_MEAS_CFGS];
 extern "C" {
 #endif
 
+struct SensorConfigParams {
+    uint8_t modeCmd;          /**< 0x40..0x48 (0 to keep current mode) */
+    uint16_t kiloIterations;  /**< 0 to keep mode default / current */
+    uint16_t periodMs;        /**< period in milliseconds (0 = free-running) */
+    uint8_t dualMode;         /**< 0 = disabled, 1 = normal dual, 2 = 8x8 LR dual */
+    uint8_t nrPeaks;          /**< 1..4 (default 1) */
+};
+
 void initial_setup(uint8_t logLevelIdx, uint32_t baudrate, uint32_t spiClockSpeedInHz);
 
 int8_t main_loop(void);
@@ -37,6 +45,8 @@ int8_t main_loop(void);
 void final_clean_shutdown(void);
 
 void preconfigure(int8_t cfgNr);
+
+bool apply_and_reset_sensor_config(const SensorConfigParams &params);
 
 bool apply_and_reset_sensor_mode(uint8_t cfgCmd);
 
