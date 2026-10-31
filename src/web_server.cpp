@@ -26,36 +26,29 @@ extern const uint8_t styles_css_end[]   asm("_binary_styles_css_end");
 
 static esp_err_t index_get_handler(httpd_req_t *req) {
     const size_t length = index_html_end - index_html_start;
-    ESP_LOGI(TAG, "Serving %s (%zu bytes)", req->uri, length);
     httpd_resp_set_type(req, "text/html");
     return httpd_resp_send(req, reinterpret_cast<const char *>(index_html_start), length);
 }
 
 static esp_err_t pure_min_css_get_handler(httpd_req_t *req) {
     const size_t length = pure_min_css_end - pure_min_css_start;
-    ESP_LOGI(TAG, "Serving %s (%zu bytes)", req->uri, length);
     httpd_resp_set_type(req, "text/css");
     return httpd_resp_send(req, reinterpret_cast<const char *>(pure_min_css_start), length);
 }
 
 static esp_err_t grids_responsive_min_css_get_handler(httpd_req_t *req) {
     const size_t length = grids_responsive_min_css_end - grids_responsive_min_css_start;
-    ESP_LOGI(TAG, "Serving %s (%zu bytes)", req->uri, length);
     httpd_resp_set_type(req, "text/css");
     return httpd_resp_send(req, reinterpret_cast<const char *>(grids_responsive_min_css_start), length);
 }
 
 static esp_err_t styles_css_get_handler(httpd_req_t *req) {
     const size_t length = styles_css_end - styles_css_start;
-    ESP_LOGI(TAG, "Serving %s (%zu bytes)", req->uri, length);
     httpd_resp_set_type(req, "text/css");
     return httpd_resp_send(req, reinterpret_cast<const char *>(styles_css_start), length);
 }
 
 static esp_err_t image_png_get_handler(httpd_req_t *req) {
-    int64_t t_req_start = esp_timer_get_time();
-    ESP_LOGI(TAG, "Serving %s (retrieving latest 48x32 depth frame from background stream)", req->uri);
-
     if (stateTmf8829 == TMF8829_STATE_DISABLED || stateTmf8829 == TMF8829_STATE_ERROR) {
         ESP_LOGW(TAG, "Sensor is not initialized or in error state (state=%d)", stateTmf8829);
         httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Sensor not initialized or in error state");
@@ -68,7 +61,6 @@ static esp_err_t image_png_get_handler(httpd_req_t *req) {
         measure();
     }
 
-    int64_t t_grab_start = esp_timer_get_time();
     static uint16_t distances[1536];
     int64_t frame_timestamp_us = 0;
     uint32_t frame_counter = 0;
@@ -84,20 +76,14 @@ static esp_err_t image_png_get_handler(httpd_req_t *req) {
         }
     }
 
-    int64_t t_grab_end = esp_timer_get_time();
-    int64_t grab_us = t_grab_end - t_grab_start;
-
     if (!success) {
         ESP_LOGE(TAG, "No depth frame available from background stream");
         httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Sensor measurement in progress, first frame not ready");
         return ESP_FAIL;
     }
 
-    int64_t t_png_start = esp_timer_get_time();
     static uint8_t png_buffer[4096];
-    size_t png_size = encode_gray16_png(distances, 48, 32, png_buffer, sizeof(png_buffer));
-    int64_t t_png_end = esp_timer_get_time();
-    int64_t png_us = t_png_end - t_png_start;
+    const size_t png_size = encode_gray16_png(distances, 48, 32, png_buffer, sizeof(png_buffer));
 
     if (png_size == 0) {
         ESP_LOGE(TAG, "Failed to encode PNG image");
@@ -105,24 +91,11 @@ static esp_err_t image_png_get_handler(httpd_req_t *req) {
         return ESP_FAIL;
     }
 
-    int64_t total_us = t_png_end - t_req_start;
-    float frame_age_ms = (frame_timestamp_us > 0) ? (t_png_end - frame_timestamp_us) / 1000.0f : 0.0f;
-
-    ESP_LOGI(TAG, "Performance metrics for %s (Frame #%lu, Frame Age: %.1f ms):",
-             req->uri, (unsigned long)frame_counter, frame_age_ms);
-    ESP_LOGI(TAG, "  * Activating sensor: 0.00 ms (asynchronous continuous background streaming active)");
-    ESP_LOGI(TAG, "  * Grab image from sensor: %.2f ms (instant RAM buffer snapshot)", grab_us / 1000.0f);
-    ESP_LOGI(TAG, "  * PNG compression: %.2f ms", png_us / 1000.0f);
-    ESP_LOGI(TAG, "  * Total HTTP latency: %.2f ms", total_us / 1000.0f);
-
     httpd_resp_set_type(req, "image/png");
     return httpd_resp_send(req, reinterpret_cast<const char *>(png_buffer), png_size);
 }
 
 static esp_err_t image_snr_png_get_handler(httpd_req_t *req) {
-    int64_t t_req_start = esp_timer_get_time();
-    ESP_LOGI(TAG, "Serving %s (retrieving latest 48x32 SNR frame from background stream)", req->uri);
-
     if (stateTmf8829 == TMF8829_STATE_DISABLED || stateTmf8829 == TMF8829_STATE_ERROR) {
         ESP_LOGW(TAG, "Sensor is not initialized or in error state (state=%d)", stateTmf8829);
         httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Sensor not initialized or in error state");
@@ -135,7 +108,6 @@ static esp_err_t image_snr_png_get_handler(httpd_req_t *req) {
         measure();
     }
 
-    int64_t t_grab_start = esp_timer_get_time();
     static uint8_t snr_map[1536];
     int64_t frame_timestamp_us = 0;
     uint32_t frame_counter = 0;
@@ -151,20 +123,14 @@ static esp_err_t image_snr_png_get_handler(httpd_req_t *req) {
         }
     }
 
-    int64_t t_grab_end = esp_timer_get_time();
-    int64_t grab_us = t_grab_end - t_grab_start;
-
     if (!success) {
         ESP_LOGE(TAG, "No SNR frame available from background stream");
         httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Sensor measurement in progress, first frame not ready");
         return ESP_FAIL;
     }
 
-    int64_t t_png_start = esp_timer_get_time();
     static uint8_t png_buffer[4096];
-    size_t png_size = encode_gray8_png(snr_map, 48, 32, png_buffer, sizeof(png_buffer));
-    int64_t t_png_end = esp_timer_get_time();
-    int64_t png_us = t_png_end - t_png_start;
+    const size_t png_size = encode_gray8_png(snr_map, 48, 32, png_buffer, sizeof(png_buffer));
 
     if (png_size == 0) {
         ESP_LOGE(TAG, "Failed to encode PNG image");
@@ -172,70 +138,60 @@ static esp_err_t image_snr_png_get_handler(httpd_req_t *req) {
         return ESP_FAIL;
     }
 
-    int64_t total_us = t_png_end - t_req_start;
-    float frame_age_ms = (frame_timestamp_us > 0) ? (t_png_end - frame_timestamp_us) / 1000.0f : 0.0f;
-
-    ESP_LOGI(TAG, "Performance metrics for %s (Frame #%lu, Frame Age: %.1f ms):",
-             req->uri, (unsigned long)frame_counter, frame_age_ms);
-    ESP_LOGI(TAG, "  * Activating sensor: 0.00 ms (asynchronous continuous background streaming active)");
-    ESP_LOGI(TAG, "  * Grab image from sensor: %.2f ms (instant RAM buffer snapshot)", grab_us / 1000.0f);
-    ESP_LOGI(TAG, "  * PNG compression: %.2f ms", png_us / 1000.0f);
-    ESP_LOGI(TAG, "  * Total HTTP latency: %.2f ms", total_us / 1000.0f);
-
     httpd_resp_set_type(req, "image/png");
     return httpd_resp_send(req, reinterpret_cast<const char *>(png_buffer), png_size);
 }
 
-static const httpd_uri_t uri_root = {
+static constexpr httpd_uri_t uri_root = {
     .uri       = "/",
     .method    = HTTP_GET,
     .handler   = index_get_handler,
     .user_ctx  = nullptr
 };
 
-static const httpd_uri_t uri_index_html = {
+static constexpr httpd_uri_t uri_index_html = {
     .uri       = "/index.html",
     .method    = HTTP_GET,
     .handler   = index_get_handler,
     .user_ctx  = nullptr
 };
 
-static const httpd_uri_t uri_pure_min_css = {
+static constexpr httpd_uri_t uri_pure_min_css = {
     .uri       = "/pure-min.css",
     .method    = HTTP_GET,
     .handler   = pure_min_css_get_handler,
     .user_ctx  = nullptr
 };
 
-static const httpd_uri_t uri_grids_responsive_min_css = {
+static constexpr httpd_uri_t uri_grids_responsive_min_css = {
     .uri       = "/grids-responsive-min.css",
     .method    = HTTP_GET,
     .handler   = grids_responsive_min_css_get_handler,
     .user_ctx  = nullptr
 };
 
-static const httpd_uri_t uri_styles_css = {
+static constexpr httpd_uri_t uri_styles_css = {
     .uri       = "/styles.css",
     .method    = HTTP_GET,
     .handler   = styles_css_get_handler,
     .user_ctx  = nullptr
 };
 
-static const httpd_uri_t uri_api_image_depth_png = {
+static constexpr httpd_uri_t uri_api_image_depth_png = {
     .uri       = "/api/image/depth.png",
     .method    = HTTP_GET,
     .handler   = image_png_get_handler,
     .user_ctx  = nullptr
 };
 
-static const httpd_uri_t uri_api_image_snr_png = {
+static constexpr httpd_uri_t uri_api_image_snr_png = {
     .uri       = "/api/image/snr.png",
     .method    = HTTP_GET,
     .handler   = image_snr_png_get_handler,
     .user_ctx  = nullptr
 };
 
-esp_err_t start_webserver(void) {
+esp_err_t start_webserver() {
     if (s_server != nullptr) {
         return ESP_OK;
     }
