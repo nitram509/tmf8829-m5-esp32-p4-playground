@@ -34,6 +34,16 @@ You can change the wiring by running `idf.py menuconfig`.
 
 ## Configuration & Defaults
 
+#### Pre-requisites
+
+This project uses ESP-IDF v5.4.3, because the M5 Unit uses an older chip revision: v1.3.
+Newer versions of ESP-IDF require a new chip version - and may require adjustments to ensure compatibility with the M5 Unit.
+
+Typically, you can use EIM (ESP-IDF Installation Manager) to install the required version of ESP-IDF.
+And then run `source ~/.espressif/tools/activate_idf_v5.4.3.sh` to activate the environment.
+
+#### Project Configuration
+
 Project defaults in `sdkconfig.defaults.esp32p4` include:
 - **Flash Size**: 16 MB (`CONFIG_ESPTOOLPY_FLASHSIZE_16MB=y`)
 - **Console Interface**: Native USB Serial/JTAG controller as primary console (`CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG=y`)
