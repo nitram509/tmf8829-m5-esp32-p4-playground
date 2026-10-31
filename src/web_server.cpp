@@ -11,6 +11,8 @@
 #include "esp_log.h"
 #include "esp_http_server.h"
 #include "esp_timer.h"
+#include "esp_mac.h"
+#include "esp_chip_info.h"
 
 static const char *TAG = "web_server";
 
@@ -413,6 +415,41 @@ static esp_err_t telemetry_get_handler(httpd_req_t *req) {
     return httpd_resp_send(req, json, len);
 }
 
+static esp_err_t info_get_handler(httpd_req_t *req) {
+    char chip_ver[32] = {};
+    snprintf(chip_ver, sizeof(chip_ver), "%u.%u",
+             tmf8829.device.chipVersion[0],
+             tmf8829.device.chipVersion[1]);
+
+    char sensor_serial[32] = {};
+    snprintf(sensor_serial, sizeof(sensor_serial), "0x%08lX",
+             static_cast<unsigned long>(tmf8829.device.deviceSerialNumber));
+
+    uint8_t esp_mac[6] = {};
+    if (const esp_err_t mac_err = esp_efuse_mac_get_default(esp_mac); mac_err != ESP_OK) {
+        esp_read_mac(esp_mac, ESP_MAC_ETH);
+    }
+
+    char esp_serial[32] = {};
+    snprintf(esp_serial, sizeof(esp_serial), "%02X:%02X:%02X:%02X:%02X:%02X",
+             esp_mac[0], esp_mac[1], esp_mac[2], esp_mac[3], esp_mac[4], esp_mac[5]);
+
+    char json[512];
+    const int len = snprintf(json, sizeof(json),
+        "{\n"
+        "  \"sensor_chip_version\": \"%s\",\n"
+        "  \"sensor_serial_number\": \"%s\",\n"
+        "  \"esp32_serial_number\": \"%s\"\n"
+        "}\n",
+        chip_ver,
+        sensor_serial,
+        esp_serial
+    );
+
+    httpd_resp_set_type(req, "application/json");
+    return httpd_resp_send(req, json, len);
+}
+
 static constexpr httpd_uri_t uri_root = {
     .uri       = "/",
     .method    = HTTP_GET,
@@ -490,6 +527,13 @@ static constexpr httpd_uri_t uri_api_status_get = {
     .user_ctx  = nullptr
 };
 
+static constexpr httpd_uri_t uri_api_info_get = {
+    .uri       = "/api/info",
+    .method    = HTTP_GET,
+    .handler   = info_get_handler,
+    .user_ctx  = nullptr
+};
+
 esp_err_t start_webserver() {
     if (s_server != nullptr) {
         return ESP_OK;
@@ -518,6 +562,7 @@ esp_err_t start_webserver() {
         &uri_api_config_post,
         &uri_api_telemetry_get,
         &uri_api_status_get,
+        &uri_api_info_get,
     };
 
     for (const auto *handler : handlers) {

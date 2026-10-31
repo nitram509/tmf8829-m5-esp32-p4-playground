@@ -98,6 +98,14 @@
                             Operating State:
                             <span id="tele-state" class="metric-box-value" style="font-size: 1.05em; color: #3182ce;">--</span>
                         </div>
+
+                        <div style="margin: 0.8em 0 0.6em 0; border-top: 1px solid #e2e8f0;"></div>
+
+                        <div style="font-size: 0.8em; color: #4a5568; line-height: 1.7;">
+                            <div><span style="color: #718096;">Sensor Chip Version:</span> <strong id="tele-chip-ver" class="mono" style="color: #2d3748; margin-left: 4px;">--</strong></div>
+                            <div><span style="color: #718096;">Sensor Serial:</span> <strong id="tele-sensor-serial" class="mono" style="color: #2d3748; margin-left: 4px;">--</strong></div>
+                            <div><span style="color: #718096;">ESP32 MAC Address:</span> <strong id="tele-esp-serial" class="mono" style="color: #2d3748; margin-left: 4px;">--</strong></div>
+                        </div>
                     </div>
                 </div>
 
@@ -200,6 +208,7 @@
                 <li class="mono">GET <a href="/api/config">/api/config</a></li>
                 <li class="mono">POST /api/config</li>
                 <li class="mono">GET <a href="/api/telemetry">/api/telemetry</a></li>
+                <li class="mono">GET <a href="/api/info">/api/info</a></li>
                 <li class="mono">GET <a href="/api/image/depth.png">/api/image/depth.png</a></li>
                 <li class="mono">GET <a href="/api/image/snr.png">/api/image/snr.png</a></li>
             </ul>
@@ -521,6 +530,25 @@
         });
     }
 
+    // --- DEVICE INFO LOADER ---
+    function loadDeviceInfo() {
+        fetch('/api/info')
+            .then(function(res) { return res.json(); })
+            .then(function(data) {
+                if (!data) return;
+                const chipVer = document.getElementById('tele-chip-ver');
+                const sensorSerial = document.getElementById('tele-sensor-serial');
+                const espSerial = document.getElementById('tele-esp-serial');
+
+                if (chipVer && data.sensor_chip_version) chipVer.textContent = data.sensor_chip_version;
+                if (sensorSerial && data.sensor_serial_number) sensorSerial.textContent = data.sensor_serial_number;
+                if (espSerial && data.esp32_serial_number) espSerial.textContent = data.esp32_serial_number;
+            })
+            .catch(function(err) {
+                console.warn('Device info fetch error', err);
+            });
+    }
+
     // --- TELEMETRY & DIAGNOSTICS POLLER ---
     function pollTelemetry() {
         fetch('/api/telemetry')
@@ -651,6 +679,7 @@
                     setTimeout(function() { status.textContent = ''; }, 3500);
                 }
                 syncCurrentConfig();
+                loadDeviceInfo();
                 pollTelemetry();
 
                 // Refresh initial depth and SNR images
@@ -688,6 +717,7 @@
         setupModeConstraints();
         setupConfigForm();
 
+        loadDeviceInfo();
         pollTelemetry();
         setInterval(pollTelemetry, 1000);
     });

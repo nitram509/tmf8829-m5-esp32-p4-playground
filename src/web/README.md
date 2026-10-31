@@ -1,6 +1,8 @@
 
-## How to generate the C file from the HTML
+## Web Application
 
-```shell
-srec_cat -o index_html.c -C-Array index_html -INClude  index.html -binary
-```
+These source files are automatically compiled into the firmware,
+when running `idf.py build`. 
+See also `EMBED_TXTFILES` in `CMakeLists.txt`.
+
+Reminder: since this is baked into the firmware, try to keep the code size small.
