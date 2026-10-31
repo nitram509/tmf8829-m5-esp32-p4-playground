@@ -1,27 +1,34 @@
-| Supported Targets | ESP32-P4 | ESP32 |
-| ----------------- | -------- | ----- |
-
 # TMF8829 SPI Driver & Playground (ESP32-P4)
 
-This project provides an ESP-IDF firmware application for the **ams OSRAM TMF8829** multi-zone direct Time-of-Flight (dToF) optical distance sensor running on an **ESP32-P4** (e.g., M5Stack Unit PoE-P4).
+This project provides an ESP-IDF firmware for the **ams OSRAM TMF8829** multi-zone direct Time-of-Flight (dToF) optical distance sensor running on an **ESP32-P4** (e.g., M5Stack Unit PoE-P4).
 
-It is ported from the official ams OSRAM Arduino reference driver (`TMF8829_Driver_Arduino_v1.2.5`), preserving the original driver architecture in `src/` while integrating an ESP-IDF hardware shim for high-speed SPI communication (with DMA), GPIO control, USB Serial/JTAG console interaction, and FreeRTOS task yielding for watchdog safety.
+The core driver was ported from the official ams OSRAM Arduino reference driver (`TMF8829_Driver_Arduino_v1.2.5`)
+This application uses high-speed SPI (20MHz) communication (with DMA), and FreeRTOS task yielding for watchdog safety.
+It offers a self-contained web-application, for quick and easy visualization of the sensor data.
+
+#### Hardware used
+
+* M5Stack Unit PoE-P4, see https://docs.m5stack.com/en/unit/Unit_PoE-P4 (ca. 25 EUR)
+* LightRanger 14 Click, see https://www.mikroe.com/lightranger-14-click (ca. 25 EUR)
+
+![](./documentation/m5_with_tmf8829_sensor.jpg)
 
 ---
 
 ## Hardware Wiring
 
-The default firmware configuration matches the soldered module pinout:
+The default firmware configuration matches the soldered module pinout. \
+You can change the wiring by running `idf.py menuconfig`.
 
-| Signal | ESP32-P4 GPIO | Description |
-| :--- | :--- | :--- |
-| **MOSI** | `GPIO13` | SPI Master Out / Slave In |
-| **SCLK** | `GPIO12` | SPI Clock |
-| **MISO** | `GPIO11` | SPI Master In / Slave Out |
-| **CS** | `GPIO10` | SPI Chip Select |
-| **DE** | `GPIO9` | Device Enable (active high) |
-| **GND** | `GND` | Ground |
-| **3V3** | `3.3V` | Power Supply |
+| Signal   | ESP32-P4 GPIO | LightRanger 14 Click | Description                 |
+|:---------|:--------------|:---------------------|:----------------------------|
+| **MOSI** | `GPIO13`      | pin 6 - SO           | SPI Master Out / Slave In   |
+| **SCLK** | `GPIO12`      | pin 5 - CLK          | SPI Clock                   |
+| **MISO** | `GPIO11`      | pin 4 - SOO          | SPI Master In / Slave Out   |
+| **CS**   | `GPIO10`      | pin 3 - CS           | SPI Chip Select             |
+| **DE**   | `GPIO9`       | pin 1 - EN           | Device Enable (active high) |
+| **GND**  | `GND`         | pin 8 - GND          | Ground                      |
+| **3V3**  | `3.3V`        | pin 7 - VCC          | Power Supply                |
 
 ---
 
@@ -66,29 +73,37 @@ To exit the monitor, use the shortcut `Ctrl + ]`.
 
 ---
 
+## Web Server
+
+The application provides a web server on port 80, which can be accessed via `http://<ESP32-P4_IP>`.
+
+![](./documentation/playground_demo_screenshot.png)
+
+---
+
 ## Interactive Serial Console
 
 The application provides an interactive command-line interface via the monitor console. Simply press any of the following keys:
 
-| Key | Action | Description |
-| :---: | :--- | :--- |
-| `h` | **Help** | Prints the list of available commands |
-| `e` | **Enable & Download FW** | Enables the sensor via `DE`, powers up, and downloads RAM firmware |
-| `m` | **Measure** | Starts continuous distance measurements |
-| `s` | **Stop** | Stops continuous measurement |
-| `c` / `p` | **Next Configuration** | Cycles through optical configurations (8x8, 16x16, 32x32, 48x32, high accuracy, etc.) |
-| `u` | **Get Configuration** | Reads and displays current configuration registers |
-| `1` / `o` / `O` | **Single-Shot 48x32 Capture** | Captures a 48x32 frame (dual sub-frames) and transmits PGM image via UDP |
-| `a` | **Dump Registers** | Dumps 256 sensor registers over SPI (when stopped) |
-| `w` | **Wakeup** | Wakes up sensor from power-down state |
-| `P` | **Power Down** | Puts sensor into power-down (standby) state |
-| `d` | **Disable** | Drives `DE` low to disable the sensor |
-| `z` | **Histogram** | Toggles histogram readout / dumping |
-| `x` | **Clock Correction** | Toggles distance clock correction on/off |
-| `+` | **Log Level +** | Increases logging verbosity |
-| `-` | **Log Level -** | Decreases logging verbosity |
-| `#` | **Reset** | Tests software reset on the sensor |
-| `b` | **Binary Mode** | Enters binary command input mode |
+|       Key       | Action                        | Description                                                                           |
+|:---------------:|:------------------------------|:--------------------------------------------------------------------------------------|
+|       `h`       | **Help**                      | Prints the list of available commands                                                 |
+|       `e`       | **Enable & Download FW**      | Enables the sensor via `DE`, powers up, and downloads RAM firmware                    |
+|       `m`       | **Measure**                   | Starts continuous distance measurements                                               |
+|       `s`       | **Stop**                      | Stops continuous measurement                                                          |
+|    `c` / `p`    | **Next Configuration**        | Cycles through optical configurations (8x8, 16x16, 32x32, 48x32, high accuracy, etc.) |
+|       `u`       | **Get Configuration**         | Reads and displays current configuration registers                                    |
+| `1` / `o` / `O` | **Single-Shot 48x32 Capture** | Captures a 48x32 frame (dual sub-frames) and transmits PGM image via UDP              |
+|       `a`       | **Dump Registers**            | Dumps 256 sensor registers over SPI (when stopped)                                    |
+|       `w`       | **Wakeup**                    | Wakes up sensor from power-down state                                                 |
+|       `P`       | **Power Down**                | Puts sensor into power-down (standby) state                                           |
+|       `d`       | **Disable**                   | Drives `DE` low to disable the sensor                                                 |
+|       `z`       | **Histogram**                 | Toggles histogram readout / dumping                                                   |
+|       `x`       | **Clock Correction**          | Toggles distance clock correction on/off                                              |
+|       `+`       | **Log Level +**               | Increases logging verbosity                                                           |
+|       `-`       | **Log Level -**               | Decreases logging verbosity                                                           |
+|       `#`       | **Reset**                     | Tests software reset on the sensor                                                    |
+|       `b`       | **Binary Mode**               | Enters binary command input mode                                                      |
 
 ### Typical Usage Walkthroughs
 
@@ -142,7 +157,7 @@ protoc --proto_path=../../proto --nanopb_out="$(pwd)" message.proto
 - `src/help.cpp` & `src/help.h`: Helper functions for human-readable mode names, pre-configuration labels, and optical profile descriptions.
 - `src/net.cpp` & `src/net.h`: Ethernet driver initialization (ESP32-P4 EMAC + IP101 PHY), raw/PGM image UDP forwarder, and network event handling.
 - `src/net_handler.cpp` & `src/net_handler.h`: UDP server listener and Protobuf request handler (`Request` / `GetDeviceInfo` -> `DeviceInfo` response).
-- `src/web_server.cpp` & `src/web_server.h`: Embedded HTTP web server (`esp_http_server`) serving `/`, `/index.html`, `/pure-min.css`, `/grids-responsive-min.css`, `/styles.css`, `/api/image/depth.png` (instant < 2ms snapshot of latest 16-bit PNG depth map), and `/api/image/snr.png` (instant 8-bit PNG signal-to-noise ratio map from background stream).
+- `src/web_server.cpp` & `src/web_server.h`: Embedded HTTP web server (`esp_http_server`) serving `/`, `/index.html`, `/pure-min.css`, `/grids-responsive-min.css`, `/styles.css`, `/api/config` (GET sensor configuration / POST mode updates), `/api/image/depth.png` (instant < 2ms snapshot of latest 16-bit PNG depth map), and `/api/image/snr.png` (instant 8-bit PNG signal-to-noise ratio map from background stream).
 - `src/web/`: Web static assets embedded directly via ESP-IDF `EMBED_TXTFILES` (`index.html`, `pure-min.css`, `grids-responsive-min.css`, `styles.css`).
 - `src/protobuf/`: Protocol Buffers definitions and auto-generated Nanopb bindings (`message.pb.c`, `message.pb.h`).
 - `src/vendor/nanopb-0.4.9.2/`: Nanopb protocol buffers library (`pb.h`, `pb_common.c`, `pb_encode.c`, `pb_decode.c`).
