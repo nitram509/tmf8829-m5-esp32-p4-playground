@@ -18,6 +18,8 @@ static const char *TAG = "tmf8829";
 static SemaphoreHandle_t s_distance_map_mutex = nullptr;
 static uint16_t s_latest_distances[1536] = {0};
 static uint8_t s_latest_snr[1536] = {0};
+static uint16_t s_current_width = 48;
+static uint16_t s_current_height = 32;
 static bool s_subframes_seen[2] = {false, false};
 static bool s_has_valid_frame = false;
 static int64_t s_latest_frame_time_us = 0;
@@ -26,9 +28,43 @@ static int8_t s_latest_temperatures[3] = {0, 0, 0};
 static bool s_has_temperatures = false;
 static int64_t s_last_temperature_log_time_us = 0;
 
+void get_sensor_mode_dimensions(uint8_t cfgCmd, uint16_t *out_width, uint16_t *out_height) {
+    uint16_t w = 48;
+    uint16_t h = 32;
+    switch (cfgCmd) {
+        case TMF8829_CMD_STAT__cmd_stat__CMD_LOAD_CFG_8X8:
+        case TMF8829_CMD_STAT__cmd_stat__CMD_LOAD_CFG_8X8_LONG_RANGE:
+        case TMF8829_CMD_STAT__cmd_stat__CMD_LOAD_CFG_8X8_HIGH_ACCURACY:
+            w = 8;
+            h = 8;
+            break;
+        case TMF8829_CMD_STAT__cmd_stat__CMD_LOAD_CFG_16X16:
+        case TMF8829_CMD_STAT__cmd_stat__CMD_LOAD_CFG_16X16_HIGH_ACCURACY:
+            w = 16;
+            h = 16;
+            break;
+        case TMF8829_CMD_STAT__cmd_stat__CMD_LOAD_CFG_32X32:
+        case TMF8829_CMD_STAT__cmd_stat__CMD_LOAD_CFG_32X32_HIGH_ACCURACY:
+            w = 32;
+            h = 32;
+            break;
+        case TMF8829_CMD_STAT__cmd_stat__CMD_LOAD_CFG_48X32:
+        case TMF8829_CMD_STAT__cmd_stat__CMD_LOAD_CFG_48X32_HIGH_ACCURACY:
+        default:
+            w = 48;
+            h = 32;
+            break;
+    }
+    if (out_width != nullptr) *out_width = w;
+    if (out_height != nullptr) *out_height = h;
+}
+
 void init_distance_map_storage() {
     if (s_distance_map_mutex == nullptr) {
         s_distance_map_mutex = xSemaphoreCreateMutex();
+    }
+    if (s_distance_map_mutex != nullptr) {
+        xSemaphoreTake(s_distance_map_mutex, portMAX_DELAY);
     }
     memset(s_latest_distances, 0, sizeof(s_latest_distances));
     memset(s_latest_snr, 0, sizeof(s_latest_snr));
@@ -42,6 +78,15 @@ void init_distance_map_storage() {
     s_latest_temperatures[2] = 0;
     s_has_temperatures = false;
     s_last_temperature_log_time_us = 0;
+
+    uint8_t cfgCmd = (currentMeasConfigNr >= 0 && currentMeasConfigNr < NR_OF_MEAS_CFGS)
+                     ? static_cast<uint8_t>(measConfig[currentMeasConfigNr])
+                     : static_cast<uint8_t>(TMF8829_CMD_STAT__cmd_stat__CMD_LOAD_CFG_48X32);
+    get_sensor_mode_dimensions(cfgCmd, &s_current_width, &s_current_height);
+
+    if (s_distance_map_mutex != nullptr) {
+        xSemaphoreGive(s_distance_map_mutex);
+    }
 }
 
 bool is_distance_map_available() {
@@ -62,8 +107,8 @@ bool get_latest_temperatures(int8_t *out_temp0, int8_t *out_temp1, int8_t *out_t
     return false;
 }
 
-bool get_latest_distance_map(uint16_t *out_distances, uint16_t width, uint16_t height, int64_t *out_timestamp_us, uint32_t *out_frame_counter) {
-    if (out_distances == nullptr || width != 48 || height != 32) {
+bool get_latest_distance_map(uint16_t *out_distances, uint16_t *out_width, uint16_t *out_height, int64_t *out_timestamp_us, uint32_t *out_frame_counter) {
+    if (out_distances == nullptr) {
         return false;
     }
     if (s_distance_map_mutex == nullptr || !s_has_valid_frame) {
@@ -71,7 +116,11 @@ bool get_latest_distance_map(uint16_t *out_distances, uint16_t width, uint16_t h
     }
 
     if (xSemaphoreTake(s_distance_map_mutex, pdMS_TO_TICKS(50)) == pdTRUE) {
-        memcpy(out_distances, s_latest_distances, sizeof(uint16_t) * 1536);
+        size_t total_pixels = static_cast<size_t>(s_current_width) * s_current_height;
+        if (total_pixels > 1536) total_pixels = 1536;
+        memcpy(out_distances, s_latest_distances, sizeof(uint16_t) * total_pixels);
+        if (out_width != nullptr) *out_width = s_current_width;
+        if (out_height != nullptr) *out_height = s_current_height;
         if (out_timestamp_us != nullptr) {
             *out_timestamp_us = s_latest_frame_time_us;
         }
@@ -84,8 +133,8 @@ bool get_latest_distance_map(uint16_t *out_distances, uint16_t width, uint16_t h
     return false;
 }
 
-bool get_latest_snr_map(uint8_t *out_snr, uint16_t width, uint16_t height, int64_t *out_timestamp_us, uint32_t *out_frame_counter) {
-    if (out_snr == nullptr || width != 48 || height != 32) {
+bool get_latest_snr_map(uint8_t *out_snr, uint16_t *out_width, uint16_t *out_height, int64_t *out_timestamp_us, uint32_t *out_frame_counter) {
+    if (out_snr == nullptr) {
         return false;
     }
     if (s_distance_map_mutex == nullptr || !s_has_valid_frame) {
@@ -93,7 +142,11 @@ bool get_latest_snr_map(uint8_t *out_snr, uint16_t width, uint16_t height, int64
     }
 
     if (xSemaphoreTake(s_distance_map_mutex, pdMS_TO_TICKS(50)) == pdTRUE) {
-        memcpy(out_snr, s_latest_snr, sizeof(uint8_t) * 1536);
+        size_t total_pixels = static_cast<size_t>(s_current_width) * s_current_height;
+        if (total_pixels > 1536) total_pixels = 1536;
+        memcpy(out_snr, s_latest_snr, sizeof(uint8_t) * total_pixels);
+        if (out_width != nullptr) *out_width = s_current_width;
+        if (out_height != nullptr) *out_height = s_current_height;
         if (out_timestamp_us != nullptr) {
             *out_timestamp_us = s_latest_frame_time_us;
         }
@@ -205,6 +258,8 @@ int8_t process_sensor_measurement_stream() {
             if (totalPixels == 768) {
                 // 48x32 subframe (16 rows * 48 columns)
                 if (s_distance_map_mutex != nullptr && xSemaphoreTake(s_distance_map_mutex, pdMS_TO_TICKS(20)) == pdTRUE) {
+                    s_current_width = 48;
+                    s_current_height = 32;
                     for (int m = 0; m < 768; m++) {
                         int r = m / 48; // row in subframe (0..15)
                         int c = m % 48; // col in subframe (0..47)
@@ -238,9 +293,108 @@ int8_t process_sensor_measurement_stream() {
                     s_frame_counter++;
                     xSemaphoreGive(s_distance_map_mutex);
                 }
-            } else if (totalPixels > 0 && totalPixels <= 1536) {
-                // Single-frame mode (8x8, 16x16, 32x32, etc.)
+            } else if (totalPixels == 512) {
+                // 32x32 subframe (16 rows * 32 columns)
                 if (s_distance_map_mutex != nullptr && xSemaphoreTake(s_distance_map_mutex, pdMS_TO_TICKS(20)) == pdTRUE) {
+                    s_current_width = 32;
+                    s_current_height = 32;
+                    for (int m = 0; m < 512; m++) {
+                        int r = m / 32; // row in subframe (0..15)
+                        int c = m % 32; // col in subframe (0..31)
+                        int y = (r * 2) + subResult; // full matrix row (0..31)
+                        int fullIdx = y * 32 + c;
+
+                        size_t offset = pixelStart + (m * pixelSize);
+                        if ((offset + 2) <= totalFrameSize) {
+                            size_t idx = 0;
+                            if (layout & TMF8829_CFG_RESULT_FORMAT_NOISE_STRENGTH_MASK) { idx += 2; }
+                            if (layout & TMF8829_CFG_RESULT_FORMAT_XTALK_MASK) { idx += 2; }
+                            if ((offset + idx + 2) <= totalFrameSize) {
+                                uint16_t dist = static_cast<uint16_t>(frameBuffer[offset + idx]) |
+                                                (static_cast<uint16_t>(frameBuffer[offset + idx + 1]) << 8);
+                                if (tmf8829.clkCorrectionEnable) {
+                                    dist = tmf8829CorrectDistance(&tmf8829, dist);
+                                }
+                                s_latest_distances[fullIdx] = dist;
+                            }
+                            if ((offset + idx + 3) <= totalFrameSize) {
+                                uint8_t snr = frameBuffer[offset + idx + 2];
+                                s_latest_snr[fullIdx] = snr;
+                            }
+                        }
+                    }
+                    s_subframes_seen[subResult] = true;
+                    if (s_subframes_seen[0] && s_subframes_seen[1]) {
+                        s_has_valid_frame = true;
+                    }
+                    s_latest_frame_time_us = esp_timer_get_time();
+                    s_frame_counter++;
+                    xSemaphoreGive(s_distance_map_mutex);
+                }
+            } else if (totalPixels == 256) {
+                // 16x16 single frame (16 rows * 16 columns)
+                if (s_distance_map_mutex != nullptr && xSemaphoreTake(s_distance_map_mutex, pdMS_TO_TICKS(20)) == pdTRUE) {
+                    s_current_width = 16;
+                    s_current_height = 16;
+                    for (uint16_t m = 0; m < 256; m++) {
+                        size_t offset = pixelStart + (m * pixelSize);
+                        size_t idx = 0;
+                        if (layout & TMF8829_CFG_RESULT_FORMAT_NOISE_STRENGTH_MASK) { idx += 2; }
+                        if (layout & TMF8829_CFG_RESULT_FORMAT_XTALK_MASK) { idx += 2; }
+                        if ((offset + idx + 2) <= totalFrameSize) {
+                            uint16_t dist = static_cast<uint16_t>(frameBuffer[offset + idx]) |
+                                            (static_cast<uint16_t>(frameBuffer[offset + idx + 1]) << 8);
+                            if (tmf8829.clkCorrectionEnable) {
+                                dist = tmf8829CorrectDistance(&tmf8829, dist);
+                            }
+                            s_latest_distances[m] = dist;
+                        }
+                        if ((offset + idx + 3) <= totalFrameSize) {
+                            uint8_t snr = frameBuffer[offset + idx + 2];
+                            s_latest_snr[m] = snr;
+                        }
+                    }
+                    s_has_valid_frame = true;
+                    s_latest_frame_time_us = esp_timer_get_time();
+                    s_frame_counter++;
+                    xSemaphoreGive(s_distance_map_mutex);
+                }
+            } else if (totalPixels == 64) {
+                // 8x8 single frame (8 rows * 8 columns)
+                if (s_distance_map_mutex != nullptr && xSemaphoreTake(s_distance_map_mutex, pdMS_TO_TICKS(20)) == pdTRUE) {
+                    s_current_width = 8;
+                    s_current_height = 8;
+                    for (uint16_t m = 0; m < 64; m++) {
+                        size_t offset = pixelStart + (m * pixelSize);
+                        size_t idx = 0;
+                        if (layout & TMF8829_CFG_RESULT_FORMAT_NOISE_STRENGTH_MASK) { idx += 2; }
+                        if (layout & TMF8829_CFG_RESULT_FORMAT_XTALK_MASK) { idx += 2; }
+                        if ((offset + idx + 2) <= totalFrameSize) {
+                            uint16_t dist = static_cast<uint16_t>(frameBuffer[offset + idx]) |
+                                            (static_cast<uint16_t>(frameBuffer[offset + idx + 1]) << 8);
+                            if (tmf8829.clkCorrectionEnable) {
+                                dist = tmf8829CorrectDistance(&tmf8829, dist);
+                            }
+                            s_latest_distances[m] = dist;
+                        }
+                        if ((offset + idx + 3) <= totalFrameSize) {
+                            uint8_t snr = frameBuffer[offset + idx + 2];
+                            s_latest_snr[m] = snr;
+                        }
+                    }
+                    s_has_valid_frame = true;
+                    s_latest_frame_time_us = esp_timer_get_time();
+                    s_frame_counter++;
+                    xSemaphoreGive(s_distance_map_mutex);
+                }
+            } else if (totalPixels > 0 && totalPixels <= 1536) {
+                // Generic single-frame fallback
+                if (s_distance_map_mutex != nullptr && xSemaphoreTake(s_distance_map_mutex, pdMS_TO_TICKS(20)) == pdTRUE) {
+                    uint8_t cfgCmd = (currentMeasConfigNr >= 0 && currentMeasConfigNr < NR_OF_MEAS_CFGS)
+                                     ? static_cast<uint8_t>(measConfig[currentMeasConfigNr])
+                                     : static_cast<uint8_t>(TMF8829_CMD_STAT__cmd_stat__CMD_LOAD_CFG_48X32);
+                    get_sensor_mode_dimensions(cfgCmd, &s_current_width, &s_current_height);
+
                     for (uint16_t m = 0; m < totalPixels; m++) {
                         size_t offset = pixelStart + (m * pixelSize);
                         size_t idx = 0;

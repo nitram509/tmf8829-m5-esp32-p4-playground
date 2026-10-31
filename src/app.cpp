@@ -188,6 +188,38 @@ void preconfigure(int8_t cfgNr) {
     }
 }
 
+/** @brief Applies a new sensor preconfiguration mode, resets data buffers, and restarts continuous measurement.
+ *  @param cfgCmd Preconfiguration command code (e.g., TMF8829_CMD_STAT__cmd_stat__CMD_LOAD_CFG_48X32).
+ *  @return true on success, false if sensor is in disabled or error state.
+ */
+bool apply_and_reset_sensor_mode(uint8_t cfgCmd) {
+    if (stateTmf8829 == TMF8829_STATE_DISABLED || stateTmf8829 == TMF8829_STATE_ERROR) {
+        return false;
+    }
+
+    // Stop current measurement stream
+    stop();
+
+    // Track matching config index
+    for (int i = 0; i < NR_OF_MEAS_CFGS; i++) {
+        if (measConfig[i] == cfgCmd) {
+            currentMeasConfigNr = i;
+            break;
+        }
+    }
+
+    // Apply preconfiguration
+    preconfigure(cfgCmd);
+
+    // Reset distance & SNR frame buffers
+    init_distance_map_storage();
+
+    // Restart continuous measurement
+    measure();
+
+    return true;
+}
+
 /** @brief  Function to get the configuration from the Tmf8829 device.
  *  After that the configuration is printed.
  */

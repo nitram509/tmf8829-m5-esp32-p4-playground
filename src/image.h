@@ -15,25 +15,28 @@ void init_distance_map_storage();
  */
 int8_t process_sensor_measurement_stream();
 
-/** @brief Retrieves a copy of the latest available 48x32 distance map from RAM in a thread-safe manner.
+/** @brief Retrieves a copy of the latest available distance map from RAM in a thread-safe manner.
  *  @param out_distances Pointer to destination buffer (must hold at least 1536 uint16 values).
- *  @param width Expected width (48).
- *  @param height Expected height (32).
+ *  @param out_width Pointer to receive width of the latest frame (e.g. 8, 16, 32, 48).
+ *  @param out_height Pointer to receive height of the latest frame (e.g. 8, 16, 32).
  *  @param out_timestamp_us Optional output pointer to receive timestamp (in microseconds) of the latest frame.
  *  @param out_frame_counter Optional output pointer to receive sequential frame counter.
  *  @return true if a valid frame was copied, false if no frame is available yet or mutex timeout.
  */
-bool get_latest_distance_map(uint16_t *out_distances, uint16_t width, uint16_t height, int64_t *out_timestamp_us = nullptr, uint32_t *out_frame_counter = nullptr);
+bool get_latest_distance_map(uint16_t *out_distances, uint16_t *out_width, uint16_t *out_height, int64_t *out_timestamp_us = nullptr, uint32_t *out_frame_counter = nullptr);
 
-/** @brief Retrieves a copy of the latest available 48x32 SNR (signal-to-noise ratio) map from RAM in a thread-safe manner.
+/** @brief Retrieves a copy of the latest available SNR (signal-to-noise ratio) map from RAM in a thread-safe manner.
  *  @param out_snr Pointer to destination buffer (must hold at least 1536 uint8 values).
- *  @param width Expected width (48).
- *  @param height Expected height (32).
+ *  @param out_width Pointer to receive width of the latest frame (e.g. 8, 16, 32, 48).
+ *  @param out_height Pointer to receive height of the latest frame (e.g. 8, 16, 32).
  *  @param out_timestamp_us Optional output pointer to receive timestamp (in microseconds) of the latest frame.
  *  @param out_frame_counter Optional output pointer to receive sequential frame counter.
  *  @return true if a valid frame was copied, false if no frame is available yet or mutex timeout.
  */
-bool get_latest_snr_map(uint8_t *out_snr, uint16_t width, uint16_t height, int64_t *out_timestamp_us = nullptr, uint32_t *out_frame_counter = nullptr);
+bool get_latest_snr_map(uint8_t *out_snr, uint16_t *out_width, uint16_t *out_height, int64_t *out_timestamp_us = nullptr, uint32_t *out_frame_counter = nullptr);
+
+/** @brief Helper to get expected dimensions for a given configuration command code. */
+void get_sensor_mode_dimensions(uint8_t cfgCmd, uint16_t *out_width, uint16_t *out_height);
 
 /** @brief Checks if at least one complete valid distance map has been captured and stored.
  *  @return true if depth data is available, false otherwise.

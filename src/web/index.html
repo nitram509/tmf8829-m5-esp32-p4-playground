@@ -22,7 +22,7 @@
             <div class="l-box pure-u-1 pure-u-md-1-2 pure-u-lg-1-4">
                 <h3 class="content-subhead">Depth image</h3>
                 <p>
-                    <img id="depth-image" style="width: 100%; height: 100%; border: 1px solid silver;" src="/api/image/depth.png"
+                    <img id="depth-image" style="width: 100%; height: auto; border: 1px solid silver; image-rendering: pixelated; image-rendering: crisp-edges;" src="/api/image/depth.png"
                          alt="Depth image">
                 </p>
                 <form class="pure-form">
@@ -36,7 +36,7 @@
             <div class="l-box pure-u-1 pure-u-md-1-2 pure-u-lg-1-4">
                 <h3 class="content-subhead">SNR image</h3>
                 <p>
-                    <img id="snr-image" style="width: 100%; height: 100%; border: 1px solid silver;" src="/api/image/snr.png"
+                    <img id="snr-image" style="width: 100%; height: auto; border: 1px solid silver; image-rendering: pixelated; image-rendering: crisp-edges;" src="/api/image/snr.png"
                          alt="SNR image">
                 </p>
                 <form class="pure-form">
@@ -49,11 +49,24 @@
             </div>
             <div class="l-box pure-u-1 pure-u-md-1-2 pure-u-lg-1-2">
                 <h3 class="content-subhead">Settings</h3>
-                <p>
-                    * Modes
-                    * Dual Mode
-                    * kiter
-                </p>
+                <form id="config-form" class="pure-form pure-form-stacked" method="POST" action="/api/config">
+                    <fieldset>
+                        <label for="mode-select">Sensor Mode</label>
+                        <select id="mode-select" name="mode" class="pure-input-1" style="max-width: 340px; margin-bottom: 1em;">
+                            <option value="0x40">8x8 Default</option>
+                            <option value="0x41">8x8 Long Range (12m)</option>
+                            <option value="0x42">8x8 High Accuracy (Short Range)</option>
+                            <option value="0x43">16x16 Default</option>
+                            <option value="0x44">16x16 High Accuracy (Short Range)</option>
+                            <option value="0x45">32x32 Default</option>
+                            <option value="0x46">32x32 High Accuracy (Short Range)</option>
+                            <option value="0x47" selected>48x32 Default</option>
+                            <option value="0x48">48x32 High Accuracy (Short Range)</option>
+                        </select>
+                        <button id="config-submit-btn" type="submit" class="pure-button pure-button-primary">apply & reset</button>
+                        <span id="config-status" style="margin-left: 10px; font-weight: bold;"></span>
+                    </fieldset>
+                </form>
             </div>
 
         </div>
@@ -63,6 +76,8 @@
         <div class="pure-u-1 pure-u-md-1-2 pure-u-lg-3-5">
             <h2 class="content-head">API Overview</h2>
             <ul>
+                <li class="mono">GET <a href="/api/config">/api/config</a></li>
+                <li class="mono">POST /api/config</li>
                 <li class="mono">GET <a href="/api/image/depth.png">/api/image/depth.png</a></li>
                 <li class="mono">GET <a href="/api/image/snr.png">/api/image/snr.png</a></li>
             </ul>
@@ -117,9 +132,77 @@
         });
     }
 
+    function syncCurrentConfig() {
+        const select = document.getElementById('mode-select');
+        if (!select) return;
+        fetch('/api/config')
+            .then(function(res) { return res.json(); })
+            .then(function(data) {
+                if (data && data.mode_cmd) {
+                    select.value = data.mode_cmd;
+                }
+            })
+            .catch(function(err) {
+                console.warn('Could not fetch active config', err);
+            });
+    }
+
+    function setupConfigForm() {
+        const form = document.getElementById('config-form');
+        const select = document.getElementById('mode-select');
+        const btn = document.getElementById('config-submit-btn');
+        const status = document.getElementById('config-status');
+        if (!form || !select || !btn) return;
+
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            btn.disabled = true;
+            if (status) {
+                status.textContent = 'Applying...';
+                status.style.color = '#34495e';
+            }
+
+            fetch('/api/config', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'Accept': 'application/json'
+                },
+                body: 'mode=' + encodeURIComponent(select.value)
+            })
+            .then(function(res) {
+                if (!res.ok) throw new Error('HTTP ' + res.status);
+                return res.json();
+            })
+            .then(function(data) {
+                if (status) {
+                    status.textContent = 'Applied!';
+                    status.style.color = '#27ae60';
+                    setTimeout(function() { status.textContent = ''; }, 3000);
+                }
+                syncCurrentConfig();
+                const depthImg = document.getElementById('depth-image');
+                const snrImg = document.getElementById('snr-image');
+                if (depthImg) depthImg.src = '/api/image/depth.png?_t=' + Date.now();
+                if (snrImg) snrImg.src = '/api/image/snr.png?_t=' + Date.now();
+            })
+            .catch(function(err) {
+                if (status) {
+                    status.textContent = 'Error: ' + err.message;
+                    status.style.color = '#c0392b';
+                }
+            })
+            .finally(function() {
+                btn.disabled = false;
+            });
+        });
+    }
+
     document.addEventListener('DOMContentLoaded', function() {
         setupAutoRefresh('depth-image', 'depth-autorefresh', '/api/image/depth.png', 200);
         setupAutoRefresh('snr-image', 'snr-autorefresh', '/api/image/snr.png', 200);
+        syncCurrentConfig();
+        setupConfigForm();
     });
 </script>
 </body>

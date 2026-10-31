@@ -2,6 +2,11 @@
 #include "image.h"
 #include "image_png.h"
 #include "app.h"
+#include "help.h"
+
+#include <cstdlib>
+#include <cstring>
+#include <cstdio>
 
 #include "esp_log.h"
 #include "esp_http_server.h"
@@ -57,36 +62,41 @@ static esp_err_t image_png_get_handler(httpd_req_t *req) {
 
     // If sensor is in STOPPED state, start continuous measurement automatically
     if (stateTmf8829 == TMF8829_STATE_STOPPED) {
-        preconfigure(TMF8829_CMD_STAT__cmd_stat__CMD_LOAD_CFG_48X32);
+        int8_t cmd = (currentMeasConfigNr >= 0 && currentMeasConfigNr < NR_OF_MEAS_CFGS)
+                     ? static_cast<int8_t>(measConfig[currentMeasConfigNr])
+                     : static_cast<int8_t>(TMF8829_CMD_STAT__cmd_stat__CMD_LOAD_CFG_48X32);
+        preconfigure(cmd);
         measure();
     }
 
     static uint16_t distances[1536];
+    uint16_t width = 0;
+    uint16_t height = 0;
     int64_t frame_timestamp_us = 0;
     uint32_t frame_counter = 0;
 
-    bool success = get_latest_distance_map(distances, 48, 32, &frame_timestamp_us, &frame_counter);
+    bool success = get_latest_distance_map(distances, &width, &height, &frame_timestamp_us, &frame_counter);
     if (!success) {
         // Wait up to 300 ms for first background frame if just started
         int retry = 0;
         while (!success && retry < 30) {
             vTaskDelay(pdMS_TO_TICKS(10));
-            success = get_latest_distance_map(distances, 48, 32, &frame_timestamp_us, &frame_counter);
+            success = get_latest_distance_map(distances, &width, &height, &frame_timestamp_us, &frame_counter);
             retry++;
         }
     }
 
-    if (!success) {
+    if (!success || width == 0 || height == 0) {
         ESP_LOGE(TAG, "No depth frame available from background stream");
         httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Sensor measurement in progress, first frame not ready");
         return ESP_FAIL;
     }
 
     static uint8_t png_buffer[4096];
-    const size_t png_size = encode_gray16_png(distances, 48, 32, png_buffer, sizeof(png_buffer));
+    const size_t png_size = encode_gray16_png(distances, width, height, png_buffer, sizeof(png_buffer));
 
     if (png_size == 0) {
-        ESP_LOGE(TAG, "Failed to encode PNG image");
+        ESP_LOGE(TAG, "Failed to encode PNG image (%ux%u)", width, height);
         httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to encode PNG image");
         return ESP_FAIL;
     }
@@ -104,42 +114,190 @@ static esp_err_t image_snr_png_get_handler(httpd_req_t *req) {
 
     // If sensor is in STOPPED state, start continuous measurement automatically
     if (stateTmf8829 == TMF8829_STATE_STOPPED) {
-        preconfigure(TMF8829_CMD_STAT__cmd_stat__CMD_LOAD_CFG_48X32);
+        int8_t cmd = (currentMeasConfigNr >= 0 && currentMeasConfigNr < NR_OF_MEAS_CFGS)
+                     ? static_cast<int8_t>(measConfig[currentMeasConfigNr])
+                     : static_cast<int8_t>(TMF8829_CMD_STAT__cmd_stat__CMD_LOAD_CFG_48X32);
+        preconfigure(cmd);
         measure();
     }
 
     static uint8_t snr_map[1536];
+    uint16_t width = 0;
+    uint16_t height = 0;
     int64_t frame_timestamp_us = 0;
     uint32_t frame_counter = 0;
 
-    bool success = get_latest_snr_map(snr_map, 48, 32, &frame_timestamp_us, &frame_counter);
+    bool success = get_latest_snr_map(snr_map, &width, &height, &frame_timestamp_us, &frame_counter);
     if (!success) {
         // Wait up to 300 ms for first background frame if just started
         int retry = 0;
         while (!success && retry < 30) {
             vTaskDelay(pdMS_TO_TICKS(10));
-            success = get_latest_snr_map(snr_map, 48, 32, &frame_timestamp_us, &frame_counter);
+            success = get_latest_snr_map(snr_map, &width, &height, &frame_timestamp_us, &frame_counter);
             retry++;
         }
     }
 
-    if (!success) {
+    if (!success || width == 0 || height == 0) {
         ESP_LOGE(TAG, "No SNR frame available from background stream");
         httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Sensor measurement in progress, first frame not ready");
         return ESP_FAIL;
     }
 
     static uint8_t png_buffer[4096];
-    const size_t png_size = encode_gray8_png(snr_map, 48, 32, png_buffer, sizeof(png_buffer));
+    const size_t png_size = encode_gray8_png(snr_map, width, height, png_buffer, sizeof(png_buffer));
 
     if (png_size == 0) {
-        ESP_LOGE(TAG, "Failed to encode PNG image");
+        ESP_LOGE(TAG, "Failed to encode SNR PNG image (%ux%u)", width, height);
         httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to encode PNG image");
         return ESP_FAIL;
     }
 
     httpd_resp_set_type(req, "image/png");
     return httpd_resp_send(req, reinterpret_cast<const char *>(png_buffer), png_size);
+}
+
+static esp_err_t config_get_handler(httpd_req_t *req) {
+    if (stateTmf8829 == TMF8829_STATE_DISABLED || stateTmf8829 == TMF8829_STATE_ERROR) {
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Sensor not initialized or in error state");
+        return ESP_FAIL;
+    }
+
+    uint8_t cfgCmd = (currentMeasConfigNr >= 0 && currentMeasConfigNr < NR_OF_MEAS_CFGS)
+                     ? static_cast<uint8_t>(measConfig[currentMeasConfigNr])
+                     : static_cast<uint8_t>(TMF8829_CMD_STAT__cmd_stat__CMD_LOAD_CFG_48X32);
+
+    uint16_t period = static_cast<uint16_t>(tmf8829.config[TMF8829_CFG_PERIOD_MS_LSB - TMF8829_CFG_PERIOD_MS_LSB])
+                      | (static_cast<uint16_t>(tmf8829.config[TMF8829_CFG_PERIOD_MS_MSB - TMF8829_CFG_PERIOD_MS_LSB]) << 8);
+    uint16_t kiloIter = static_cast<uint16_t>(tmf8829.config[TMF8829_CFG_KILO_ITERATIONS_LSB - TMF8829_CFG_PERIOD_MS_LSB])
+                        | (static_cast<uint16_t>(tmf8829.config[TMF8829_CFG_KILO_ITERATIONS_MSB - TMF8829_CFG_PERIOD_MS_LSB]) << 8);
+    uint8_t fpMode = tmf8829.config[TMF8829_CFG_FP_MODE - TMF8829_CFG_PERIOD_MS_LSB];
+
+    const char *stateStr = (stateTmf8829 == TMF8829_STATE_MEASURE) ? "MEASURE" :
+                           (stateTmf8829 == TMF8829_STATE_STOPPED) ? "STOPPED" :
+                           (stateTmf8829 == TMF8829_STATE_STANDBY) ? "STANDBY" : "UNKNOWN";
+
+    char json[1024];
+    int len = snprintf(json, sizeof(json),
+        "{\n"
+        "  \"mode_cmd\": \"0x%02X\",\n"
+        "  \"mode_name\": \"%s\",\n"
+        "  \"fp_mode\": %u,\n"
+        "  \"fp_mode_name\": \"%s\",\n"
+        "  \"period_ms\": %u,\n"
+        "  \"kilo_iterations\": %u,\n"
+        "  \"state\": \"%s\",\n"
+        "  \"modes\": [\n"
+        "    {\"cmd\": \"0x40\", \"name\": \"8x8 Default\"},\n"
+        "    {\"cmd\": \"0x41\", \"name\": \"8x8 Long Range (12m)\"},\n"
+        "    {\"cmd\": \"0x42\", \"name\": \"8x8 High Accuracy (Short Range)\"},\n"
+        "    {\"cmd\": \"0x43\", \"name\": \"16x16 Default\"},\n"
+        "    {\"cmd\": \"0x44\", \"name\": \"16x16 High Accuracy (Short Range)\"},\n"
+        "    {\"cmd\": \"0x45\", \"name\": \"32x32 Default\"},\n"
+        "    {\"cmd\": \"0x46\", \"name\": \"32x32 High Accuracy (Short Range)\"},\n"
+        "    {\"cmd\": \"0x47\", \"name\": \"48x32 Default\"},\n"
+        "    {\"cmd\": \"0x48\", \"name\": \"48x32 High Accuracy (Short Range)\"}\n"
+        "  ]\n"
+        "}\n",
+        cfgCmd,
+        getPreconfigName(cfgCmd),
+        fpMode,
+        getFpModeName(fpMode),
+        period,
+        kiloIter,
+        stateStr
+    );
+
+    httpd_resp_set_type(req, "application/json");
+    return httpd_resp_send(req, json, len);
+}
+
+static esp_err_t config_post_handler(httpd_req_t *req) {
+    if (stateTmf8829 == TMF8829_STATE_DISABLED || stateTmf8829 == TMF8829_STATE_ERROR) {
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Sensor not initialized or in error state");
+        return ESP_FAIL;
+    }
+
+    char buf[256];
+    int remaining = req->content_len;
+    if (remaining <= 0 || remaining >= sizeof(buf)) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Invalid content length");
+        return ESP_FAIL;
+    }
+
+    int received = httpd_req_recv(req, buf, remaining);
+    if (received <= 0) {
+        if (received == HTTPD_SOCK_ERR_TIMEOUT) {
+            httpd_resp_send_408(req);
+        }
+        return ESP_FAIL;
+    }
+    buf[received] = '\0';
+
+    ESP_LOGI(TAG, "POST /api/config payload: %s", buf);
+
+    uint8_t selectedCmd = 0;
+    char mode_str[32] = {0};
+
+    // Try parsing application/x-www-form-urlencoded
+    if (httpd_query_key_value(buf, "mode", mode_str, sizeof(mode_str)) == ESP_OK ||
+        httpd_query_key_value(buf, "cmd", mode_str, sizeof(mode_str)) == ESP_OK) {
+        selectedCmd = static_cast<uint8_t>(strtol(mode_str, nullptr, 0));
+    } else {
+        // Try finding "mode": or "cmd": in JSON or raw number
+        char *p = strstr(buf, "mode");
+        if (!p) p = strstr(buf, "cmd");
+        if (p) {
+            while (*p && (*p < '0' || *p > '9') && *p != 'x' && *p != 'X') {
+                p++;
+            }
+            if (*p) {
+                selectedCmd = static_cast<uint8_t>(strtol(p, nullptr, 0));
+            }
+        } else {
+            // Check if entire payload is just a number (e.g. "0x47" or "71")
+            selectedCmd = static_cast<uint8_t>(strtol(buf, nullptr, 0));
+        }
+    }
+
+    // Validate that selectedCmd is one of the 9 valid preconfig commands
+    bool valid = false;
+    for (int i = 0; i < NR_OF_MEAS_CFGS; i++) {
+        if (measConfig[i] == selectedCmd) {
+            valid = true;
+            break;
+        }
+    }
+
+    if (!valid) {
+        ESP_LOGW(TAG, "Invalid configuration command received: 0x%02X", selectedCmd);
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Invalid mode command. Must be 0x40..0x48");
+        return ESP_FAIL;
+    }
+
+    ESP_LOGI(TAG, "Applying sensor mode 0x%02X (%s) & resetting stream...", selectedCmd, getPreconfigName(selectedCmd));
+    if (!apply_and_reset_sensor_mode(selectedCmd)) {
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to apply sensor configuration");
+        return ESP_FAIL;
+    }
+
+    // Check Accept header to decide between 303 redirect and JSON response
+    char accept_hdr[128] = {0};
+    esp_err_t hdr_err = httpd_req_get_hdr_value_str(req, "Accept", accept_hdr, sizeof(accept_hdr));
+    if ((hdr_err == ESP_OK || hdr_err == ESP_ERR_HTTPD_RESULT_TRUNC) &&
+        strstr(accept_hdr, "application/json") != nullptr) {
+        char resp_json[128];
+        int resp_len = snprintf(resp_json, sizeof(resp_json),
+                                "{\"status\":\"ok\",\"mode\":\"0x%02X\",\"mode_name\":\"%s\"}\n",
+                                selectedCmd, getPreconfigName(selectedCmd));
+        httpd_resp_set_type(req, "application/json");
+        return httpd_resp_send(req, resp_json, resp_len);
+    }
+
+    // Regular HTTP POST form submission: redirect back to home dashboard
+    httpd_resp_set_status(req, "303 See Other");
+    httpd_resp_set_hdr(req, "Location", "/");
+    return httpd_resp_send(req, nullptr, 0);
 }
 
 static constexpr httpd_uri_t uri_root = {
@@ -191,30 +349,56 @@ static constexpr httpd_uri_t uri_api_image_snr_png = {
     .user_ctx  = nullptr
 };
 
+static constexpr httpd_uri_t uri_api_config_get = {
+    .uri       = "/api/config",
+    .method    = HTTP_GET,
+    .handler   = config_get_handler,
+    .user_ctx  = nullptr
+};
+
+static constexpr httpd_uri_t uri_api_config_post = {
+    .uri       = "/api/config",
+    .method    = HTTP_POST,
+    .handler   = config_post_handler,
+    .user_ctx  = nullptr
+};
+
 esp_err_t start_webserver() {
     if (s_server != nullptr) {
         return ESP_OK;
     }
 
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
+    config.max_uri_handlers = 16;
     config.lru_purge_enable = true;
 
-    ESP_LOGI(TAG, "Starting HTTP server on port %d...", config.server_port);
+    ESP_LOGI(TAG, "Starting HTTP server on port %d (max URI handlers: %u)...", config.server_port, config.max_uri_handlers);
     esp_err_t ret = httpd_start(&s_server, &config);
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "Failed to start HTTP server: %s", esp_err_to_name(ret));
         return ret;
     }
 
-    httpd_register_uri_handler(s_server, &uri_root);
-    httpd_register_uri_handler(s_server, &uri_index_html);
-    httpd_register_uri_handler(s_server, &uri_pure_min_css);
-    httpd_register_uri_handler(s_server, &uri_grids_responsive_min_css);
-    httpd_register_uri_handler(s_server, &uri_styles_css);
-    httpd_register_uri_handler(s_server, &uri_api_image_depth_png);
-    httpd_register_uri_handler(s_server, &uri_api_image_snr_png);
+    const httpd_uri_t *handlers[] = {
+        &uri_root,
+        &uri_index_html,
+        &uri_pure_min_css,
+        &uri_grids_responsive_min_css,
+        &uri_styles_css,
+        &uri_api_image_depth_png,
+        &uri_api_image_snr_png,
+        &uri_api_config_get,
+        &uri_api_config_post,
+    };
 
-    ESP_LOGI(TAG, "HTTP server started and listening for web assets, '/api/image/depth.png', and '/api/image/snr.png'");
+    for (const auto *handler : handlers) {
+        esp_err_t err = httpd_register_uri_handler(s_server, handler);
+        if (err != ESP_OK) {
+            ESP_LOGE(TAG, "Failed to register URI %s (method %d): %s", handler->uri, handler->method, esp_err_to_name(err));
+        }
+    }
+
+    ESP_LOGI(TAG, "HTTP server started and listening for web assets, '/api/config', '/api/image/depth.png', and '/api/image/snr.png'");
     return ESP_OK;
 }
 
