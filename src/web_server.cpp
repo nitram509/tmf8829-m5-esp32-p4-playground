@@ -1,5 +1,5 @@
 #include "web_server.h"
-#include "image_pgm.h"
+#include "image.h"
 #include "image_png.h"
 #include "app.h"
 
@@ -154,8 +154,8 @@ static const httpd_uri_t uri_styles_css = {
     .user_ctx  = nullptr
 };
 
-static const httpd_uri_t uri_api_image_png = {
-    .uri       = "/api/image.png",
+static const httpd_uri_t uri_api_image_depth_png = {
+    .uri       = "/api/image/depth.png",
     .method    = HTTP_GET,
     .handler   = image_png_get_handler,
     .user_ctx  = nullptr
@@ -181,9 +181,9 @@ esp_err_t start_webserver(void) {
     httpd_register_uri_handler(s_server, &uri_pure_min_css);
     httpd_register_uri_handler(s_server, &uri_grids_responsive_min_css);
     httpd_register_uri_handler(s_server, &uri_styles_css);
-    httpd_register_uri_handler(s_server, &uri_api_image_png);
+    httpd_register_uri_handler(s_server, &uri_api_image_depth_png);
 
-    ESP_LOGI(TAG, "HTTP server started and listening for web assets and '/api/image.png'");
+    ESP_LOGI(TAG, "HTTP server started and listening for web assets and '/api/image/depth.png'");
     return ESP_OK;
 }
 

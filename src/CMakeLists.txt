@@ -1,4 +1,4 @@
-idf_component_register(SRCS "image.cpp" "main.cpp"
+idf_component_register(SRCS "main.cpp"
                             "app.cpp"
                             "image.cpp"
                             "image_pgm.cpp"

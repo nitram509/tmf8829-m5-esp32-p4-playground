@@ -142,7 +142,7 @@ protoc --proto_path=../../proto --nanopb_out="$(pwd)" message.proto
 - `src/help.cpp` & `src/help.h`: Helper functions for human-readable mode names, pre-configuration labels, and optical profile descriptions.
 - `src/net.cpp` & `src/net.h`: Ethernet driver initialization (ESP32-P4 EMAC + IP101 PHY), raw/PGM image UDP forwarder, and network event handling.
 - `src/net_handler.cpp` & `src/net_handler.h`: UDP server listener and Protobuf request handler (`Request` / `GetDeviceInfo` -> `DeviceInfo` response).
-- `src/web_server.cpp` & `src/web_server.h`: Embedded HTTP web server (`esp_http_server`) serving `/`, `/index.html`, `/pure-min.css`, `/grids-responsive-min.css`, `/styles.css`, and `/api/image.png` (instant < 2ms snapshot of latest 16-bit PNG depth map from background stream).
+- `src/web_server.cpp` & `src/web_server.h`: Embedded HTTP web server (`esp_http_server`) serving `/`, `/index.html`, `/pure-min.css`, `/grids-responsive-min.css`, `/styles.css`, and `/api/image/depth.png` (instant < 2ms snapshot of latest 16-bit PNG depth map from background stream).
 - `src/web/`: Web static assets embedded directly via ESP-IDF `EMBED_TXTFILES` (`index.html`, `pure-min.css`, `grids-responsive-min.css`, `styles.css`).
 - `src/protobuf/`: Protocol Buffers definitions and auto-generated Nanopb bindings (`message.pb.c`, `message.pb.h`).
 - `src/vendor/nanopb-0.4.9.2/`: Nanopb protocol buffers library (`pb.h`, `pb_common.c`, `pb_encode.c`, `pb_decode.c`).

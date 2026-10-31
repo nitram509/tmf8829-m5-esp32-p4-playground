@@ -6,6 +6,7 @@
 
 #include "app.h"
 #include "help.h"
+#include "image.h"
 #include "image_pgm.h"
 #include "net.h"
 #include "net_handler.h"
