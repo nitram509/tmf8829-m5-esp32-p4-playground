@@ -1,4 +1,5 @@
 #include "web_server.h"
+#include "net_upnp.h"
 #include "image.h"
 #include "image_png.h"
 #include "app.h"
@@ -450,6 +451,14 @@ static esp_err_t info_get_handler(httpd_req_t *req) {
     return httpd_resp_send(req, json, len);
 }
 
+static esp_err_t upnp_description_get_handler(httpd_req_t *req) {
+    char xml_descr[600] = {};
+    const int len = generate_upnp_device_description_xml(xml_descr, sizeof(xml_descr));
+
+    httpd_resp_set_type(req, "text/xml");
+    return httpd_resp_send(req, xml_descr, len);
+}
+
 static constexpr httpd_uri_t uri_root = {
     .uri       = "/",
     .method    = HTTP_GET,
@@ -534,6 +543,13 @@ static constexpr httpd_uri_t uri_api_info_get = {
     .user_ctx  = nullptr
 };
 
+static constexpr httpd_uri_t uri_upnp_description = {
+    .uri       = "/description.xml",
+    .method    = HTTP_GET,
+    .handler   = upnp_description_get_handler,
+    .user_ctx  = nullptr
+};
+
 esp_err_t start_webserver() {
     if (s_server != nullptr) {
         return ESP_OK;
@@ -563,6 +579,7 @@ esp_err_t start_webserver() {
         &uri_api_telemetry_get,
         &uri_api_status_get,
         &uri_api_info_get,
+        &uri_upnp_description,
     };
 
     for (const auto *handler : handlers) {

@@ -1,4 +1,4 @@
-menu "TMF8829 UDP Forwarder Configuration"
+menu "TMF8829 Configuration"
 
     config TMF8829_SPI_HOST
         int "SPI host (2 = SPI2_HOST, 3 = SPI3_HOST)"
@@ -29,20 +29,6 @@ menu "TMF8829 UDP Forwarder Configuration"
     config TMF8829_PIN_DE
         int "TMF8829 DE GPIO"
         default 9
-
-    config TMF8829_READ_PERIOD_MS
-        int "Sensor read period [ms]"
-        range 10 5000
-        default 100
-
-    config TMF8829_UDP_TARGET_HOST
-        string "UDP target host/IP"
-        default "192.168.1.100"
-
-    config TMF8829_UDP_TARGET_PORT
-        int "UDP target port"
-        range 1 65535
-        default 5005
 
     config TMF8829_LOG_SENSOR_DATA
         bool "Log parsed sensor sample to app log"

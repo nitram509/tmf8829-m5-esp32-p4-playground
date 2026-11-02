@@ -62,7 +62,7 @@ Project options can be further adjusted using `menuconfig`:
    idf.py menuconfig
    ```
 
-3. In `TMF8829 UDP Forwarder Configuration` (or project configuration), adjust:
+3. In `TMF8829 Configuration` (or project configuration), adjust:
    - **SPI Host**: default `2` (`SPI2_HOST`)
    - **SPI Clock**: default `20000000` Hz (20 MHz)
    - **Pin Mapping**: `MOSI` (13), `MISO` (11), `SCLK` (12), `CS` (10), `DE` (9)
@@ -88,6 +88,46 @@ To exit the monitor, use the shortcut `Ctrl + ]`.
 The application provides a web server on port 80, which can be accessed via `http://<ESP32-P4_IP>`.
 
 ![](./documentation/playground_demo_screenshot.png)
+
+## UPNP broadcastin service announcement
+
+By default, a UPNP NOTIFY message is broadcasted to announce the device availability.
+The message includes the device name, device number, and MAC address.
+ 
+Example
+
+```text
+NOTIFY * HTTP/1.1
+HOST: 239.255.255.250:1900
+CACHE-CONTROL: max-age=1800
+LOCATION: http://10.1.2.3:80/description.xml
+NT: urn:de-bitkings:device:esp32-p4-tmf8829:1
+NTS: ssdp:alive
+USN: uuid:12345678-9012-0000-0000-123456789012::urn:de-bitkings:device:esp32-p4-tmf8829:1
+```
+
+Whereas the `123456789012` is the MAC address / device serial number of the ESP32-P4 device.
+
+Additionally, when fetching the `/description.xml` this information is returned
+
+```xml
+<root xmlns="urn:schemas-upnp-org:device-1-0">
+    <specVersion>
+        <major>1</major>
+        <minor>0</minor>
+    </specVersion>
+    <device>
+        <deviceType>urn:de-bitkings:device:esp32-p4-tmf8829:1</deviceType>
+        <friendlyName>esp32-p4-tmf8829</friendlyName>
+        <manufacturer>Nitram509</manufacturer>
+        <modelName>TMF8829</modelName>
+        <modelNumber>TMF8829</modelNumber>
+        <serialNumber>0x004D4674</serialNumber>
+        <UDN>uuid:80f1b2d1-49eb-0000-0000-80f1b2d149eb</UDN>
+        <presentationURL>/</presentationURL>
+    </device>
+</root>
+```
 
 ---
 
@@ -165,7 +205,7 @@ protoc --proto_path=../../proto --nanopb_out="$(pwd)" message.proto
 - `src/image_pgm.cpp` & `src/image_pgm.h`: Background measurement streaming decoder, thread-safe depth map buffer management, ASCII PGM (P2) exporter, and single-shot capture routines.
 - `src/image_png.cpp` & `src/image_png.h`: 16-bit grayscale PNG encoder (using standard non-compressed DEFLATE / zlib container with no external dependencies).
 - `src/help.cpp` & `src/help.h`: Helper functions for human-readable mode names, pre-configuration labels, and optical profile descriptions.
-- `src/net.cpp` & `src/net.h`: Ethernet driver initialization (ESP32-P4 EMAC + IP101 PHY), raw/PGM image UDP forwarder, and network event handling.
+- `src/net.cpp` & `src/net.h`: Ethernet driver initialization (ESP32-P4 EMAC + IP101 PHY) and network event handling.
 - `src/net_handler.cpp` & `src/net_handler.h`: UDP server listener and Protobuf request handler (`Request` / `GetDeviceInfo` -> `DeviceInfo` response).
 - `src/web_server.cpp` & `src/web_server.h`: Embedded HTTP web server (`esp_http_server`) serving `/`, `/index.html`, `/pure-min.css`, `/grids-responsive-min.css`, `/styles.css`, `/api/config` (GET sensor configuration / POST mode updates), `/api/telemetry` (GET real-time diagnostics: on-chip temperatures T0/T1/T2, live FPS, active resolution, frame count), `/api/info` (GET hardware identifiers: Sensor Chip Version, Sensor Serial Number, ESP32 Serial Number / MAC), `/api/image/depth.png` (instant < 2ms snapshot of latest 16-bit PNG depth map), and `/api/image/snr.png` (instant 8-bit PNG signal-to-noise ratio map from background stream).
 - `src/web/`: Web static assets embedded directly via ESP-IDF `EMBED_TXTFILES` (`index.html`, `pure-min.css`, `grids-responsive-min.css`, `styles.css`).

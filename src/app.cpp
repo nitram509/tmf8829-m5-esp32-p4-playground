@@ -10,6 +10,7 @@
 #include "image_pgm.h"
 #include "net.h"
 #include "net_handler.h"
+#include "net_upnp.h"
 #include "web_server.h"
 
 #include "tmf8829/tmf8829_shim.h"
@@ -856,7 +857,7 @@ int8_t main_loop() {
 
 void final_clean_shutdown(void) {
     stop_webserver();
-    stop_device_info_beacon();
+    stop_upnp_broadcast();
     stop_net_handler();
     tmf8829Disable(&tmf8829);
     clrInterruptHandler();

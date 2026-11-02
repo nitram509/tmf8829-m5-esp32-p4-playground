@@ -111,7 +111,7 @@ static void handle_request_packet(int sock, const uint8_t *buffer, size_t len, c
 }
 
 static void net_handler_task(void *pvParameters) {
-    ESP_LOGI(TAG, "Starting UDP listener task on port %d...", CONFIG_TMF8829_UDP_TARGET_PORT);
+    ESP_LOGI(TAG, "Starting UDP listener task on port %d...", NET_HANDLER_PORT);
 
     s_server_sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_IP);
     if (s_server_sock < 0) {
@@ -125,11 +125,11 @@ static void net_handler_task(void *pvParameters) {
     memset(&bind_addr, 0, sizeof(bind_addr));
     bind_addr.sin_family = AF_INET;
     bind_addr.sin_addr.s_addr = htonl(INADDR_ANY);
-    bind_addr.sin_port = htons(CONFIG_TMF8829_UDP_TARGET_PORT);
+    bind_addr.sin_port = htons(NET_HANDLER_PORT);
 
     int err = bind(s_server_sock, reinterpret_cast<struct sockaddr *>(&bind_addr), sizeof(bind_addr));
     if (err < 0) {
-        ESP_LOGE(TAG, "Socket unable to bind to port %d: errno %d", CONFIG_TMF8829_UDP_TARGET_PORT, errno);
+        ESP_LOGE(TAG, "Socket unable to bind to port %d: errno %d", NET_HANDLER_PORT, errno);
         close(s_server_sock);
         s_server_sock = -1;
         s_running = false;
@@ -137,7 +137,7 @@ static void net_handler_task(void *pvParameters) {
         return;
     }
 
-    ESP_LOGI(TAG, "UDP listener successfully bound to port %d. Waiting for incoming requests...", CONFIG_TMF8829_UDP_TARGET_PORT);
+    ESP_LOGI(TAG, "UDP listener successfully bound to port %d. Waiting for incoming requests...", NET_HANDLER_PORT);
     s_running = true;
 
     uint8_t rx_buffer[512];

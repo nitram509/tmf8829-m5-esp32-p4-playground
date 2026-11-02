@@ -7,6 +7,8 @@
 extern "C" {
 #endif
 
+#define NET_HANDLER_PORT 5005
+
 /**
  * @brief Initialize and start the UDP network handler task listening on the configured port.
  * @return ESP_OK on success, or error code on failure.

@@ -375,8 +375,6 @@ int8_t singleShot48x32HexDump() {
     PRINT_CONST_STR(F( "==================================================" ));
     PRINT_LN();
 
-    send_distance_map_pgm_udp(distances, 48, 32);
-
     return APP_SUCCESS_OK;
 }
 
